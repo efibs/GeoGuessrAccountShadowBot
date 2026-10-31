@@ -1,0 +1,8 @@
+{
+  "code": "FriendWentOffline",
+  "topic": "self:000000000000000000000001",
+  "payload": "{\u0022friendId\u0022:\u0022000000000000000000000002\u0022}",
+  "accessToken": null,
+  "client": "\u003Credacted\u003E",
+  "timestamp": "2026-01-01T00:00:06.000Z"
+}

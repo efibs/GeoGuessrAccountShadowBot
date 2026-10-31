@@ -1,0 +1,33 @@
+# Copy to compose.yaml and fill in the ids. Put the two tokens in the files named under `secrets`.
+# Docker secrets are preferred to environment variables, which show up in `docker inspect`.
+services:
+  shadow-bot:
+    image: ghcr.io/efibs/geoguessr-account-shadow-bot:latest
+    restart: unless-stopped
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    secrets:
+      - GeoGuessr__NcfaToken
+      - Discord__Token
+    environment:
+      Discord__GuildId: "0"
+      Discord__DefaultChannelId: "0"
+      Forum__ChannelId: "0"
+    volumes:
+      # A local volume, because SQLite's write-ahead log doesn't work over network file systems.
+      - shadow-data:/data
+
+secrets:
+  GeoGuessr__NcfaToken:
+    file: ./secrets/ncfa-token.txt
+  Discord__Token:
+    file: ./secrets/discord-token.txt
+
+volumes:
+  shadow-data:

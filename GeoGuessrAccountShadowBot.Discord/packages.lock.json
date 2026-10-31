@@ -1,0 +1,162 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "Discord.Net": {
+        "type": "Direct",
+        "requested": "[3.20.2, )",
+        "resolved": "3.20.2",
+        "contentHash": "G5Bj0WEEcrF6ibHoK5HcH2PFaC5BHYDlbNs4ewPD221q2NoQGCsQNHThF30s4M9wsaoejii1O7YXisiXRtgmxg==",
+        "dependencies": {
+          "Discord.Net.Commands": "3.20.2",
+          "Discord.Net.Core": "3.20.2",
+          "Discord.Net.Interactions": "3.20.2",
+          "Discord.Net.Rest": "3.20.2",
+          "Discord.Net.WebSocket": "3.20.2",
+          "Discord.Net.Webhook": "3.20.2"
+        }
+      },
+      "Discord.Net.Commands": {
+        "type": "Transitive",
+        "resolved": "3.20.2",
+        "contentHash": "NsRNAbqvXfGREHFbWCL+eH3v7orQehpv4kAbc2G8Vc4zxUmXYxLxCO1pcr2+qIq9s7zMUgPowJ2LMQR27FE45A==",
+        "dependencies": {
+          "Discord.Net.Core": "3.20.2",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0"
+        }
+      },
+      "Discord.Net.Core": {
+        "type": "Transitive",
+        "resolved": "3.20.2",
+        "contentHash": "uU1ElfPytaOMuc1PpXpYT47jg3YC/z487fVzNrF0kqt82CeINPK+DuQ9UKeX7OkPLsjQD2boScTRNnyr22UFKA==",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.4"
+        }
+      },
+      "Discord.Net.Dave": {
+        "type": "Transitive",
+        "resolved": "3.20.2",
+        "contentHash": "5ifJrHweUq5Gib4lwnBIqE2x9+c0nAlcDGIa7TVzZQGzVaMJbQGqI+97cLTUvK4Z3Hk51f9d8t4wy1CyweVwPw=="
+      },
+      "Discord.Net.Interactions": {
+        "type": "Transitive",
+        "resolved": "3.20.2",
+        "contentHash": "ASLPHCLYdIIBwjYvRoic/HFgMBwsrSLkE4DHNmk1orb3h3C+tDHw1eh00+hOfxaGEqnCbcxMon4ZZfgNYrNlVQ==",
+        "dependencies": {
+          "Discord.Net.Core": "3.20.2",
+          "Discord.Net.Rest": "3.20.2",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0"
+        }
+      },
+      "Discord.Net.Rest": {
+        "type": "Transitive",
+        "resolved": "3.20.2",
+        "contentHash": "4tOtq7qfzZd90KL2IGYKZEpSeRy89o2aW5U6ikJlEEHP5o03fXfCk3RbjIo4OmdLe1CyOUHjVXRKCsT1f1/3Ew==",
+        "dependencies": {
+          "Discord.Net.Core": "3.20.2"
+        }
+      },
+      "Discord.Net.Webhook": {
+        "type": "Transitive",
+        "resolved": "3.20.2",
+        "contentHash": "TX/OKSMEnovrUYKwXv4PTRHWOGJe9nUHJjyDQS215tJzdALdyKmgLxHRoVwcBhvtU33D4LznhIA7cE3buGNyBQ==",
+        "dependencies": {
+          "Discord.Net.Core": "3.20.2",
+          "Discord.Net.Rest": "3.20.2"
+        }
+      },
+      "Discord.Net.WebSocket": {
+        "type": "Transitive",
+        "resolved": "3.20.2",
+        "contentHash": "d6BdoWq8XVl8o/kREMUNc+ctmtwo0POCFIGI0ZTWRDrFbhZ8g3BRZDKnV1VNiw1UtDCq3DwSEWl2Yin7G6XSCg==",
+        "dependencies": {
+          "Discord.Net.Core": "3.20.2",
+          "Discord.Net.Dave": "3.20.2",
+          "Discord.Net.Rest": "3.20.2"
+        }
+      },
+      "Microsoft.Extensions.Configuration.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "4YdfvaoWn3tB1xQQHGrhRTFWJ8fGOqxThxduynSZy9ZFTiSaUi3vX4EK/kj8h2HQMwTlks9MWV1fv2WRBv5/1w==",
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "10.0.14"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "QtpQzuSZVyTPCuHW058yCs9Nj0394uUkNyFHS813nOmK9UgUdBdaprJ5PPsBgsQIpxADTsTkbaMMonykem6qdw=="
+      },
+      "Microsoft.Extensions.Diagnostics.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "vm+PPso6vOwGeX52MdOPh6z/R6KHgxQUwqq7k7Jc9jhy2JOxO2KB4xfoJQBBp2Ni8M4zKgJ4r2a1dgrYG7+MKw==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.14",
+          "Microsoft.Extensions.Options": "10.0.14"
+        }
+      },
+      "Microsoft.Extensions.FileProviders.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "rAqf2Em2ZjLqNbcLJlboQnXNyJP604F960TsCKNiP00Ur6ExIc1mcwmNb8L2eTRT8RC8UKx/GjecoWcW2Sj7bw==",
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "10.0.14"
+        }
+      },
+      "Microsoft.Extensions.Logging.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "SwcbEBtkECq3D2oywvHkm46fyrX9Dd2JPWphDnHUc2+cUWR1Mdo41atAjh/9iZjgQxuvbKfZKXqostT/LZfefA==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.14"
+        }
+      },
+      "Microsoft.Extensions.Primitives": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "1bbZqqCJTPba3inTADExbp/9PsGVyvGOX3zr6tFr7ySCgVkX9Lpw7BV0TizktNItd3SsbUu1sQfSAYm1GZMoNw=="
+      },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.4",
+        "contentHash": "pdgNNMai3zv51W5aq268sujXUyx7SNdE2bj1wZcWjAQrKMFZV260lbqYop1d2GM67JI1huLRwxo9ZqnfF/lC6A=="
+      },
+      "geoguessraccountshadowbot.application": {
+        "type": "Project",
+        "dependencies": {
+          "GeoGuessrAccountShadowBot.Domain": "[1.0.0, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Options": "[10.0.14, )"
+        }
+      },
+      "geoguessraccountshadowbot.domain": {
+        "type": "Project"
+      },
+      "Microsoft.Extensions.Hosting.Abstractions": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "p6NUEkmlaB+FujQZTtyNBKFULQO+Fj8SKuYdYHASQso+RkeYdFDPNsMM4mtOHqx1GZNQnZm/inmsqGkja/Dw2w==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.14",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.14",
+          "Microsoft.Extensions.Diagnostics.Abstractions": "10.0.14",
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.14",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.14"
+        }
+      },
+      "Microsoft.Extensions.Options": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "EeN/33S418m9oWEaZY4N5T+BNxtOqNTIFoFbIgBKwylh4OJPKIWFAzbIhpTdNbwUs26MhkmbLCAbdY+YCJ1dIQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.14",
+          "Microsoft.Extensions.Primitives": "10.0.14"
+        }
+      }
+    }
+  }
+}

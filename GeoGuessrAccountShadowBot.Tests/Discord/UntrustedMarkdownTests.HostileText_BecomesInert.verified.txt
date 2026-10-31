@@ -1,0 +1,78 @@
+﻿[
+  {
+    text: @everyone,
+    escaped: \@everyone
+  },
+  {
+    text: @here free nitro,
+    escaped: \@here free nitro
+  },
+  {
+    text: <@123456789>,
+    escaped: \<\@123456789\>
+  },
+  {
+    text: <@&123456789>,
+    escaped: \<\@&123456789\>
+  },
+  {
+    text: <#123456789>,
+    escaped: \<\#123456789\>
+  },
+  {
+    text: <t:0:R>,
+    escaped: \<t\:0\:R\>
+  },
+  {
+    text: # big heading,
+    escaped: \# big heading
+  },
+  {
+    text: ## also a heading,
+    escaped: \#\# also a heading
+  },
+  {
+    text: -# small text,
+    escaped: \-\# small text
+  },
+  {
+    text: - list item,
+    escaped: \- list item
+  },
+  {
+    text: 1. numbered,
+    escaped: 1\. numbered
+  },
+  {
+    text: > quote,
+    escaped: \> quote
+  },
+  {
+    text: >>> long quote,
+    escaped: \>\>\> long quote
+  },
+  {
+    text: [totally safe](http://evil.example),
+    escaped: \[totally safe\]\(http\:\/\/evil\.example\)
+  },
+  {
+    text: https://evil.example/path,
+    escaped: https\:\/\/evil\.example\/path
+  },
+  {
+    text: **bold** __underline__ ~~strike~~ ||spoiler||,
+    escaped: \*\*bold\*\* \_\_underline\_\_ \~\~strike\~\~ \|\|spoiler\|\|
+  },
+  {
+    text: `code` ```block```,
+    escaped: \`code\` \`\`\`block\`\`\`
+  },
+  {
+    text: \*already escaped\*,
+    escaped: \\\*already escaped\\\*
+  },
+  {
+    text: normal text, ok?,
+    escaped: normal text, ok?
+  }
+]

@@ -1,0 +1,6 @@
+name: "GeoGuessrAccountShadowBot CodeQL config"
+
+# Test doubles and the local probe deliberately use fake credentials, which only produce false positives.
+paths-ignore:
+  - GeoGuessrAccountShadowBot.Tests
+  - Tools

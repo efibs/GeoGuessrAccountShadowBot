@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <!-- No ProjectReference and no PackageReference, on purpose: the probe exists to find out what
+         the GeoGuessr protocol really looks like, so it must not depend on any code that assumes
+         an answer. See README.md. -->
+
+    <ItemGroup>
+        <None Update="appsettings.Local.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('appsettings.Local.json')"/>
+    </ItemGroup>
+
+</Project>

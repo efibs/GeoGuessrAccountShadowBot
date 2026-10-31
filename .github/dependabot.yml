@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      microsoft:
+        patterns: [ "Microsoft.*" ]
+      test-stack:
+        patterns: [ "xunit*", "AwesomeAssertions", "NSubstitute", "coverlet*", "Verify*", "NetArchTest*" ]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: [ "*" ]
+
+  - package-ecosystem: docker
+    directory: "/GeoGuessrAccountShadowBot.Host"
+    schedule:
+      interval: weekly

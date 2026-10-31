@@ -1,0 +1,27 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+# Local captures of GeoGuessr traffic. These contain live session cookies.
+GeoGuessr source/
+**/captures/
+
+# Secrets and local configuration
+appsettings.Local.json
+*.local.json
+.env
+.env.*
+secrets/
+
+# Runtime data
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.idea/
+
+# Test output
+*.received.*
+TestResults/

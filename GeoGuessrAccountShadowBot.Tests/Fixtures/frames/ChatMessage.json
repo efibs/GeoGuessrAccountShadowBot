@@ -1,0 +1,8 @@
+{
+  "code": "ChatMessage",
+  "topic": "chat:Friend:TextMessages:000000000000000000000001",
+  "payload": "{\u0022id\u0022:\u0022m000000001\u0022,\u0022payloadType\u0022:\u0022Text\u0022,\u0022textPayload\u0022:\u0022\\u003Credacted\\u003E\u0022,\u0022invitePayload\u0022:null,\u0022recipientType\u0022:\u0022User\u0022,\u0022recipientId\u0022:\u0022000000000000000000000001\u0022,\u0022sourceType\u0022:\u0022User\u0022,\u0022sourceId\u0022:\u0022000000000000000000000003\u0022,\u0022sentAt\u0022:\u00222026-01-01T00:00:11.000Z\u0022,\u0022roomId\u0022:\u0022000000000000000000000001:000000000000000000000003\u0022,\u0022context\u0022:\u0022Friend\u0022,\u0022channel\u0022:null,\u0022clubPayload\u0022:null,\u0022reactionPayload\u0022:null,\u0022pollPayload\u0022:null,\u0022highlightPayload\u0022:null}",
+  "accessToken": null,
+  "client": "\u003Credacted\u003E",
+  "timestamp": "2026-01-01T00:00:12.000Z"
+}

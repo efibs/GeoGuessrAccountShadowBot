@@ -1,0 +1,60 @@
+name: Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  tests:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+      - name: Restore
+        run: dotnet restore GeoGuessrAccountShadowBot.sln --locked-mode
+      - name: Check formatting
+        run: dotnet format GeoGuessrAccountShadowBot.sln --no-restore --verify-no-changes
+      - name: Build
+        run: dotnet build GeoGuessrAccountShadowBot.sln --no-restore --configuration Release
+      - name: Test
+        run: >
+          dotnet test GeoGuessrAccountShadowBot.Tests/GeoGuessrAccountShadowBot.Tests.csproj
+          --no-build --configuration Release
+          --settings coverlet.runsettings
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+          --logger "trx;LogFileName=tests.trx"
+      - name: Coverage report
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@d3ebf1f760f7d8ab92cc44d9bcfee7ad73722a31 # 5.5.11
+        with:
+          reports: ./TestResults/**/coverage.cobertura.xml
+          targetdir: ./TestResults/coveragereport
+          reporttypes: MarkdownSummaryGithub
+      - name: Publish coverage to job summary
+        if: always()
+        run: cat ./TestResults/coveragereport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: test-results
+          path: ./TestResults
+          retention-days: 7

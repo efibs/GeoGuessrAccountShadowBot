@@ -1,0 +1,16 @@
+#!/bin/sh
+# Blocks a commit that would fail CI, and anything that looks like a session cookie.
+set -e
+
+if git diff --cached --name-only | grep -qE '^GeoGuessr source/|/captures/|appsettings\.Local\.json$'; then
+    echo "pre-commit: refusing to commit a capture or local settings file." >&2
+    exit 1
+fi
+
+if git diff --cached -U0 | grep -E '^\+' | grep -qE '_ncfa=[A-Za-z0-9%_-]{20,}'; then
+    echo "pre-commit: refusing to commit what looks like a session cookie." >&2
+    exit 1
+fi
+
+dotnet format GeoGuessrAccountShadowBot.sln --verify-no-changes
+dotnet test GeoGuessrAccountShadowBot.Tests/GeoGuessrAccountShadowBot.Tests.csproj --nologo --verbosity quiet

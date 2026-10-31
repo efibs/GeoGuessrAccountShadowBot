@@ -1,0 +1,9 @@
+﻿{
+  Title: Club chat,
+  Description:
+**Player:** Nick\_Name
+Some detail
+hello \*\*world\*\*,
+  Color: 5793266,
+  Timestamp: DateTimeOffset_1
+}
