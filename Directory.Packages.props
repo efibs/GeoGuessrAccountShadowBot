@@ -4,6 +4,10 @@
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     </PropertyGroup>
 
+    <!-- Versions here are exact, so restores are repeatable without lock files. Lock files were
+         removed because Dependabot only updates the one for the project that references a package,
+         which failed every update in the projects depending on it. -->
+
     <ItemGroup Label="Discord">
         <PackageVersion Include="Discord.Net" Version="3.20.2"/>
     </ItemGroup>
