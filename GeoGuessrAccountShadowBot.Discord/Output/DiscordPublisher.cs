@@ -22,6 +22,7 @@ internal sealed class DiscordPublisher(
     DiscordSocketClient client,
     IShadowStore store,
     PlayerDirectory players,
+    ForumPostMaintenance postMaintenance,
     IOptions<ShadowOptions> options,
     TimeProvider timeProvider) : IDiscordPublisher
 {
@@ -29,8 +30,6 @@ internal sealed class DiscordPublisher(
 
     /// <summary>Discord.Net has no name for this error code.</summary>
     private const DiscordErrorCode ThreadIsLocked = (DiscordErrorCode)160005;
-
-    private static readonly TimeSpan TitleCheckInterval = TimeSpan.FromHours(24);
 
     private ShadowOptions Settings => options.Value;
 
@@ -119,7 +118,7 @@ internal sealed class DiscordPublisher(
             await SendChunksAsync(thread, chunks).ConfigureAwait(false);
         }
 
-        await RefreshTitleIfDueAsync(thread, mapped, nick, cancellationToken).ConfigureAwait(false);
+        await postMaintenance.RefreshIfDueAsync(thread, mapped, nick, client.CurrentUser.Id, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -132,7 +131,7 @@ internal sealed class DiscordPublisher(
         var post = await forum.CreatePostAsync(
             title,
             ArchiveAfter,
-            text: chunks[0],
+            text: CardRenderer.WithProfileLink(chunks[0], partnerUserId),
             allowedMentions: MentionPolicy.Nobody(),
             flags: MessageFlags.SuppressEmbeds).ConfigureAwait(false);
 
@@ -148,29 +147,11 @@ internal sealed class DiscordPublisher(
         }
     }
 
-    /// <summary>Follows a partner's rename, at most daily, because Discord limits renames strictly.</summary>
-    private async Task RefreshTitleIfDueAsync(IThreadChannel thread, PartnerThread mapped, UntrustedText nick, CancellationToken cancellationToken)
-    {
-        var now = timeProvider.GetUtcNow();
-        if (now - mapped.TitleCheckedAt < TitleCheckInterval)
-        {
-            return;
-        }
-
-        var title = ForumTitle.Create(nick, mapped.PartnerUserId);
-        if (title != mapped.TitleNick)
-        {
-            await thread.ModifyAsync(properties => properties.Name = title).ConfigureAwait(false);
-        }
-
-        await store.SavePartnerThreadAsync(mapped with { TitleNick = title, TitleCheckedAt = now }, cancellationToken).ConfigureAwait(false);
-    }
-
     private async Task PublishFriendRequestAsync(FriendRequestCard request, CancellationToken cancellationToken)
     {
         var settings = Settings.Events.GetValueOrDefault(EventKeys.FriendRequestReceived);
         var channel = await RequireChannelAsync<IMessageChannel>(settings?.ChannelId ?? Settings.Discord.DefaultChannelId).ConfigureAwait(false);
-        var nick = await players.GetNickAsync(request.UserId, cancellationToken).ConfigureAwait(false);
+        var card = await RenderFriendRequestAsync(request.UserId, cancellationToken).ConfigureAwait(false);
         var roles = (IReadOnlyCollection<ulong>?)settings?.PingRoleIds ?? [];
 
         var components = Settings.Control.FriendRequestButtons.Enabled
@@ -182,11 +163,22 @@ internal sealed class DiscordPublisher(
 
         var message = await channel.SendMessageAsync(
             MentionPolicy.PingLine(roles),
-            embed: CardRenderer.RenderFriendRequest(nick).ToEmbed(),
+            embed: card.ToEmbed(),
             components: components,
             allowedMentions: MentionPolicy.Roles(roles)).ConfigureAwait(false);
 
         await store.SaveFriendRequestCardAsync(new FriendRequestCardLocation(request.UserId, channel.Id, message.Id), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Falls back to the name alone, because the request matters more than the details.</summary>
+    private async Task<RenderedCard> RenderFriendRequestAsync(string userId, CancellationToken cancellationToken)
+    {
+        if (await players.GetProfileAsync(userId, cancellationToken).ConfigureAwait(false) is { } profile)
+        {
+            return CardRenderer.RenderFriendRequest(profile, timeProvider.GetUtcNow());
+        }
+
+        return CardRenderer.RenderFriendRequest(await players.GetNickAsync(userId, cancellationToken).ConfigureAwait(false));
     }
 
     private async Task PublishFriendRequestOutcomeAsync(FriendRequestOutcome outcome, CancellationToken cancellationToken)
@@ -205,8 +197,10 @@ internal sealed class DiscordPublisher(
             return;
         }
 
-        var nick = await players.GetNickAsync(outcome.UserId, cancellationToken).ConfigureAwait(false);
-        var embed = CardRenderer.RenderFriendRequestOutcome(nick, outcome.BecameFriend).ToEmbed();
+        // Cards from before profile details have no author line, so they get replaced as a whole.
+        var embed = message.Embeds.FirstOrDefault() is { Author: not null } existing
+            ? CardRenderer.CloseFriendRequest(existing, outcome.BecameFriend)
+            : CardRenderer.RenderFriendRequestOutcome(await players.GetNickAsync(outcome.UserId, cancellationToken).ConfigureAwait(false), outcome.BecameFriend).ToEmbed();
 
         await message.ModifyAsync(properties =>
         {

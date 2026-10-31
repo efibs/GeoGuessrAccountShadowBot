@@ -96,6 +96,35 @@ internal sealed class GeoGuessrHttpGateway(IGeoGuessrRestApi api, AccountContext
         }
     }
 
+    public async Task<PlayerProfile?> GetPlayerProfileAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var response = await CallAsync(() => api.GetUserAsync(userId, cancellationToken)).ConfigureAwait(false);
+        using (response)
+        {
+            if (response.StatusCode == HttpStatusCode.NotFound || await ReadAsync(response).ConfigureAwait(false) is not { } user)
+            {
+                return null;
+            }
+
+            var club = user.Club is { } userClub
+                ? new PlayerClub(userClub.ClubId, userClub.Tag, userClub.Level, await TryReadClubNameAsync(userClub.ClubId, cancellationToken).ConfigureAwait(false))
+                : null;
+
+            return new PlayerProfile(
+                user.Id,
+                user.Nick,
+                user.CountryCode,
+                user.Created,
+                user.Progress?.Level,
+                user.Type,
+                user.IsProUser,
+                string.IsNullOrWhiteSpace(user.CustomImage) ? user.Pin?.Url : user.CustomImage,
+                new PlayerStanding(user.IsBanned, user.SuspendedUntil, user.ChatBan),
+                club,
+                await TryReadRankedAsync(userId, cancellationToken).ConfigureAwait(false));
+        }
+    }
+
     public async Task<string?> GetOwnClubIdAsync(CancellationToken cancellationToken = default)
     {
         var response = await CallAsync(() => api.GetOwnClubAsync(cancellationToken)).ConfigureAwait(false);
@@ -145,6 +174,39 @@ internal sealed class GeoGuessrHttpGateway(IGeoGuessrRestApi api, AccountContext
         {
             return ToResult(response, "friend-request.decline_failed");
         }
+    }
+
+    /// <summary>Reads an optional detail, for which a 404 or an outage just means it stays empty.</summary>
+    private static async Task<T?> TryCallAsync<T>(Func<Task<IApiResponse<T>>> call) where T : class
+    {
+        try
+        {
+            var response = await CallAsync(call).ConfigureAwait(false);
+            using (response)
+            {
+                return response.IsSuccessStatusCode ? response.Content : null;
+            }
+        }
+        catch (GeoGuessrUnavailableException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<string?> TryReadClubNameAsync(string clubId, CancellationToken cancellationToken)
+    {
+        var club = await TryCallAsync(() => api.GetClubAsync(clubId, cancellationToken)).ConfigureAwait(false);
+        return club?.Name;
+    }
+
+    private async Task<PlayerRanked?> TryReadRankedAsync(string userId, CancellationToken cancellationToken)
+    {
+        var progress = await TryCallAsync(() => api.TryGetRankedProgressAsync(userId, cancellationToken)).ConfigureAwait(false);
+        var peak = await TryCallAsync(() => api.GetRankedPeakRatingAsync(userId, cancellationToken)).ConfigureAwait(false);
+
+        return progress is null && peak is null
+            ? null
+            : new PlayerRanked(progress?.DivisionName, progress?.Rating, peak?.PeakOverallRating, progress?.LatestGames ?? []);
     }
 
     private static async Task<T> CallAsync<T>(Func<Task<T>> call)

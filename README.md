@@ -35,8 +35,8 @@ Push-based wherever GeoGuessr allows it, so events arrive within moments. Every 
 
 | Area | What you get |
 |---|---|
-| Direct messages | One Discord forum post per chat partner, with the whole conversation |
-| Friends | New requests, your requests being accepted, optional presence |
+| Direct messages | One Discord forum post per chat partner, with the whole conversation and a link to their profile |
+| Friends | New requests with a profile card (picture, link, club, level, rating, standing), your requests being accepted, optional presence |
 | Invites | Game, challenge, team, party and club invites, club applications accepted |
 | Account | Badges, daily streak at risk or saved, moderation actions, rating refunds, reactions |
 | Club | Club chat, members joining or leaving, role changes, mission board |
@@ -93,6 +93,7 @@ Set `GeoGuessr:Socket:Enabled` to `false` for polling only. Mirroring then lags 
 - **Expired token.** The bot pings the status channel and waits. Replace the token and restart it.
 - **No trace on the account.** Reading never marks anything as read.
 - **Duplicates.** A crash at exactly the wrong moment can repeat one message in Discord. It can't lose one.
+- **Renames.** A post belongs to the GeoGuessr user id, so it survives a rename. Its title follows within about a day of the partner's next message.
 - **Typed while the bot is down.** Messages written in a forum post while the bot is offline aren't sent later, since a late reply is worse than none.
 
 [`Documentation/Operations.md`](Documentation/Operations.md) has more on running it.
@@ -108,6 +109,8 @@ dotnet build
 dotnet test
 scripts/install-git-hooks.sh
 ```
+
+To run it outside Docker, put your settings in `GeoGuessrAccountShadowBot.Host/appsettings.Local.json`, which is gitignored and copied next to the executable on build. Set `Database:Path` there too, because the default `/data/shadow.db` is a container path. In Rider, use a plain .NET project run configuration: a Docker one can't see this file, since `.dockerignore` keeps it out of the image.
 
 The architecture and how to add an event are in [`Documentation/DeveloperGuide.md`](Documentation/DeveloperGuide.md), and what's known about GeoGuessr's protocol is in [`Documentation/Protocol.md`](Documentation/Protocol.md). See also [`CONTRIBUTING.md`](CONTRIBUTING.md).
 

@@ -26,6 +26,40 @@ public sealed class PlayerDirectoryTests
     }
 
     [Fact]
+    public async Task FailedProfileLookup_IsNotAnError()
+    {
+        await using var host = await ShadowTestHost.CreateAsync();
+        host.Api.GetPlayerProfileAsync(UserId, Arg.Any<CancellationToken>()).ThrowsAsync(new HttpRequestException());
+
+        var scope = host.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var profile = await scope.ServiceProvider.GetRequiredService<PlayerDirectory>().GetProfileAsync(UserId, CancellationToken.None);
+
+            profile.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task ProfileLookup_RefreshesTheCachedName()
+    {
+        await using var host = await ShadowTestHost.CreateAsync();
+        var profile = new GeoGuessrAccountShadowBot.Domain.Model.PlayerProfile(
+            UserId, "fresh", null, null, null, null, false, null, new(false, null, false), null, null);
+        host.Api.GetPlayerProfileAsync(UserId, Arg.Any<CancellationToken>()).Returns(profile);
+
+        var scope = host.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            await scope.ServiceProvider.GetRequiredService<PlayerDirectory>().GetProfileAsync(UserId, CancellationToken.None);
+            await scope.ServiceProvider.GetRequiredService<GeoGuessrAccountShadowBot.Application.Ports.IShadowStore>().CommitAsync();
+        }
+
+        (await GetNickAsync(host)).Should().Be("fresh");
+        await host.Api.DidNotReceive().GetPlayerNickAsync(UserId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CachesNames()
     {
         await using var host = await ShadowTestHost.CreateAsync();

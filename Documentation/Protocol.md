@@ -93,6 +93,9 @@ All under `https://www.geoguessr.com`, with the `_ncfa` cookie.
 | `GET /api/v4/chat/unreads` | Unread rooms, keyed by partner | Observed |
 | `GET /api/v4/chat/<peerId>` | History | Observed |
 | `GET /api/v4/player-identities/<userId>` | Name, in `player.nick` | Observed |
+| `GET /api/v3/users/<userId>` | Public profile, with `club` when in one | Observed |
+| `GET /api/v4/clubs/<clubId>` | Club name, and members | Observed |
+| `GET /api/v4/ranked-system/peak-rating/<userId>` | Peak rating, 404 when there's none | Observed the 404 |
 | `GET /api/v4/clubs/my` | Own club, 204 without one | Observed without a club |
 | `GET /api/v4/ranked-system/progress/<userId>` | Division | Observed on an unranked account |
 | `GET /api/v4/season-pass/me` | Season id | Observed |
@@ -100,6 +103,8 @@ All under `https://www.geoguessr.com`, with the `_ncfa` cookie.
 | `DELETE /api/v3/social/friends/<id>` | Declines a request | Observed |
 | `PUT /api/v3/social/friends/<id>?context=` | **Accepts a request** | From the client |
 | `GET /api/v4/clubs/<id>/members`, `/chat` | Club | From GeoClubBot and the client |
+
+Profile pictures are `customImage`, usually null, or else `pin.url`, which is a relative path. Both work under `https://www.geoguessr.com/images/resize:fit:192:0/gravity:ce/plain/<path>`, without a session.
 
 `GET /api/v4/ranked-v2/me` answered 404. Reading notifications doesn't mark them as read. Their `payload` was empty for the friend types.
 

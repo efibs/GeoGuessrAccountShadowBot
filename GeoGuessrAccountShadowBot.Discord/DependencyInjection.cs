@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddSingleton<IDiscordReadiness>(provider => provider.GetRequiredService<DiscordReadiness>());
         services.AddSingleton<IGuildRoleReader, GuildRoleReader>();
         services.AddSingleton<ForumReplyListener>();
+        services.AddScoped<ForumPostMaintenance>();
         services.AddScoped<IDiscordPublisher, DiscordPublisher>();
         services.AddHostedService<DiscordBotService>();
         return services;
