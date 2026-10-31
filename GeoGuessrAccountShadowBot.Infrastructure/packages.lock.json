@@ -64,12 +64,12 @@
       },
       "Polly.RateLimiting": {
         "type": "Direct",
-        "requested": "[8.8.0, )",
-        "resolved": "8.8.0",
-        "contentHash": "XRXXqK7x6lxZDzVriM4hzLFdSmt0yvCo1QB5zv0mvBo3qDS5yFdtiG4EB+xodRUUaFG1hFk0hnVi3K45wD+/kA==",
+        "requested": "[8.9.0, )",
+        "resolved": "8.9.0",
+        "contentHash": "rAYBSGOL5yhG49d32eTUIFf9b+YwGBIOCskW+9Eje8pj+Bq0Y+l9C0so5NSS/IGGdHEIZ/gD9SjEs1Dvf2ZRwg==",
         "dependencies": {
-          "Polly.Core": "8.8.0",
-          "System.Threading.RateLimiting": "8.0.0"
+          "Polly.Core": "8.9.0",
+          "System.Threading.RateLimiting": "10.0.0"
         }
       },
       "Refit": {
@@ -456,8 +456,8 @@
       },
       "Polly.Core": {
         "type": "Transitive",
-        "resolved": "8.8.0",
-        "contentHash": "TewV9uNFsoRFggoFbTAGFwsMYPuckA+wTIpQPyhLL9BANRPQRENz2S4bwATrB3HBOakN5oKLFIllPiDnVecmJg=="
+        "resolved": "8.9.0",
+        "contentHash": "Imm3q+XvH+8fiOdCkp+GggDQuxN3e4VznbRxODjjJxCurmAIfUEO4dKcPx8RCwocTkvP6Udw2DyXtC+45tu3jA=="
       },
       "Polly.Extensions": {
         "type": "Transitive",
@@ -573,8 +573,8 @@
       },
       "System.Threading.RateLimiting": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "7mu9v0QDv66ar3DpGSZHg9NuNcxDaaAcnMULuZlaTpP9+hwXhrxNGsF5GmLkSHxFdb5bBc1TzeujsRgTrPWi+Q=="
+        "resolved": "10.0.0",
+        "contentHash": "0QWWGhde46NBFfMO/51QxfRNg7fnzhD8sxY38cP3HR5Sb1jkmSGpttKV1ILO2sJw7vSXQPtr3uqvXsN5iYsu5g=="
       },
       "geoguessraccountshadowbot.application": {
         "type": "Project",

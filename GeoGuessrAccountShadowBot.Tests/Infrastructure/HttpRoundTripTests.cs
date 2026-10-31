@@ -162,6 +162,84 @@ public sealed class HttpRoundTripTests : IAsyncLifetime
         (await Api.GetPlayerNickAsync(Peer)).Should().Be("The Nick");
     }
 
+    private static string UserJson(string club = "null", string customImage = "null") => $$"""
+        {"nick":"The Nick","created":"2026-02-20T10:00:00.000Z","isProUser":true,"type":"Unlimited","isVerified":false,
+         "pin":{"url":"pin/abc.png","anchor":"center-center","isDefault":false},"customImage":{{customImage}},"url":"/user/{{Peer}}",
+         "id":"{{Peer}}","countryCode":"de","progress":{"xp":1,"level":28},"isBanned":false,"chatBan":false,
+         "suspendedUntil":null,"club":{{club}} }
+        """;
+
+    private void GivenNoRanked()
+    {
+        Given($"GET /api/v4/ranked-system/progress/{Peer}", """{"divisionNumber":null,"divisionName":null,"rating":null,"tier":null,"guessedFirstRate":0,"winStreak":0,"latestGames":[],"bestCountries":[],"worstCountries":[]}""");
+        Given($"GET /api/v4/ranked-system/peak-rating/{Peer}", "", 404);
+    }
+
+    [Fact]
+    public async Task Profile_CombinesAllItsSources()
+    {
+        Given($"GET /api/v3/users/{Peer}", UserJson("""{"tag":"TAG1","clubId":"club-1","level":20}"""));
+        Given("GET /api/v4/clubs/club-1", """{"clubId":"club-1","name":"Test Club","members":[],"tag":"TAG1"}""");
+        Given($"GET /api/v4/ranked-system/progress/{Peer}", """{"divisionName":"Gold II","rating":932,"latestGames":[true,false]}""");
+        Given($"GET /api/v4/ranked-system/peak-rating/{Peer}", """{"peakOverallRating":1010}""");
+
+        var profile = (await Api.GetPlayerProfileAsync(Peer))!;
+
+        profile.Nick.Should().Be("The Nick");
+        profile.CountryCode.Should().Be("de");
+        profile.Level.Should().Be(28);
+        profile.IsPro.Should().BeTrue();
+        profile.ImagePath.Should().Be("pin/abc.png");
+        profile.Club.Should().Be(new PlayerClub("club-1", "TAG1", 20, "Test Club"));
+        profile.Ranked!.Rating.Should().Be(932);
+        profile.Ranked.PeakRating.Should().Be(1010);
+        profile.Ranked.RecentGames.Should().Equal(true, false);
+    }
+
+    [Fact]
+    public async Task Profile_PrefersACustomImage()
+    {
+        Given($"GET /api/v3/users/{Peer}", UserJson(customImage: "\"custom/abc.png\""));
+        GivenNoRanked();
+
+        (await Api.GetPlayerProfileAsync(Peer))!.ImagePath.Should().Be("custom/abc.png");
+    }
+
+    [Fact]
+    public async Task Profile_WorksWithoutAClubOrRanking()
+    {
+        Given($"GET /api/v3/users/{Peer}", UserJson());
+        GivenNoRanked();
+
+        var profile = (await Api.GetPlayerProfileAsync(Peer))!;
+
+        profile.Club.Should().BeNull();
+        profile.Ranked!.Rating.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Profile_SurvivesFailingDetails()
+    {
+        Given($"GET /api/v3/users/{Peer}", UserJson("""{"tag":"TAG1","clubId":"club-1","level":20}"""));
+        Given("GET /api/v4/clubs/club-1", "", 403);
+        Given($"GET /api/v4/ranked-system/progress/{Peer}", "", 403);
+        Given($"GET /api/v4/ranked-system/peak-rating/{Peer}", "", 403);
+
+        var profile = (await Api.GetPlayerProfileAsync(Peer))!;
+
+        profile.Club!.Tag.Should().Be("TAG1");
+        profile.Club.Name.Should().BeNull();
+        profile.Ranked.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Profile_OfAnUnknownPlayerIsNull()
+    {
+        Given($"GET /api/v3/users/{Peer}", "", 404);
+
+        (await Api.GetPlayerProfileAsync(Peer)).Should().BeNull();
+    }
+
     [Fact]
     public async Task OwnClub_IsNullWithoutAClub()
     {

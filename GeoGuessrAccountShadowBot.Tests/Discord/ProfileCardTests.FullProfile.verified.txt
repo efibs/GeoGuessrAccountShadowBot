@@ -1,0 +1,49 @@
+﻿{
+  Title: 🇩🇪 Some Player,
+  Color: 5793266,
+  Author: New friend request,
+  Url: https://www.geoguessr.com/user/bbbbbbbbbbbbbbbbbbbbbbbb,
+  ThumbnailUrl: https://www.geoguessr.com/images/resize:fit:192:0/gravity:ce/plain/pin/0123456789abcdef.png,
+  Fields: [
+    {
+      Name: Member since,
+      Value: <t:1740009600:D>,
+      IsInline: true
+    },
+    {
+      Name: Level,
+      Value: 28,
+      IsInline: true
+    },
+    {
+      Name: Type,
+      Value: Unlimited (Pro),
+      IsInline: true
+    },
+    {
+      Name: Club,
+      Value: [Test Club](https://www.geoguessr.com/clubs/00000000-0000-0000-0000-000000000042) (level 20),
+      IsInline: true
+    },
+    {
+      Name: Rating,
+      Value: 932,
+      IsInline: true
+    },
+    {
+      Name: Standing,
+      Value: Good standing,
+      IsInline: true
+    },
+    {
+      Name: Division,
+      Value: Gold II,
+      IsInline: true
+    },
+    {
+      Name: Recent games,
+      Value: 🟩🟩🟥🟩,
+      IsInline: false
+    }
+  ]
+}

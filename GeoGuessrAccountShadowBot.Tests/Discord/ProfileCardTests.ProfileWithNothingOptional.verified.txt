@@ -1,0 +1,38 @@
+﻿{
+  Title: Sparse,
+  Color: 5793266,
+  Author: New friend request,
+  Url: https://www.geoguessr.com/user/bbbbbbbbbbbbbbbbbbbbbbbb,
+  Fields: [
+    {
+      Name: Member since,
+      Value: –,
+      IsInline: true
+    },
+    {
+      Name: Level,
+      Value: –,
+      IsInline: true
+    },
+    {
+      Name: Type,
+      Value: –,
+      IsInline: true
+    },
+    {
+      Name: Club,
+      Value: None,
+      IsInline: true
+    },
+    {
+      Name: Peak rating,
+      Value: Unranked,
+      IsInline: true
+    },
+    {
+      Name: Standing,
+      Value: Good standing,
+      IsInline: true
+    }
+  ]
+}

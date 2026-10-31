@@ -1,0 +1,44 @@
+﻿{
+  Title: 🇩🇪 \@everyone \[click\]\(http\:\/\/evil\.example\),
+  Color: 5793266,
+  Author: New friend request,
+  Url: https://www.geoguessr.com/user/bbbbbbbbbbbbbbbbbbbbbbbb,
+  ThumbnailUrl: https://www.geoguessr.com/images/resize:fit:192:0/gravity:ce/plain/pin/0123456789abcdef.png,
+  Fields: [
+    {
+      Name: Member since,
+      Value: <t:1740009600:D>,
+      IsInline: true
+    },
+    {
+      Name: Level,
+      Value: 28,
+      IsInline: true
+    },
+    {
+      Name: Type,
+      Value: \*\*fake\*\* (Pro),
+      IsInline: true
+    },
+    {
+      Name: Club,
+      Value: [\# \[free nitro\]\(http\:\/\/evil\.example\)](https://www.geoguessr.com/clubs/x%29%20%5Bevil%5D%28http%3A%2F%2Fevil.example) (level 1),
+      IsInline: true
+    },
+    {
+      Name: Peak rating,
+      Value: Unranked,
+      IsInline: true
+    },
+    {
+      Name: Standing,
+      Value: Good standing,
+      IsInline: true
+    },
+    {
+      Name: Division,
+      Value: \<t\:0\:R\>,
+      IsInline: true
+    }
+  ]
+}

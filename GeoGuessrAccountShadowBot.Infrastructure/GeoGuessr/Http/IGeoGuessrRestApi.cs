@@ -31,6 +31,15 @@ internal interface IGeoGuessrRestApi
     [Get("/api/v4/player-identities/{userId}")]
     Task<IApiResponse<PlayerIdentityResponse>> GetPlayerIdentityAsync(string userId, CancellationToken cancellationToken);
 
+    [Get("/api/v3/users/{userId}")]
+    Task<IApiResponse<UserDto>> GetUserAsync(string userId, CancellationToken cancellationToken);
+
+    [Get("/api/v4/ranked-system/peak-rating/{userId}")]
+    Task<IApiResponse<RankedPeakRatingDto>> GetRankedPeakRatingAsync(string userId, CancellationToken cancellationToken);
+
+    [Get("/api/v4/clubs/{clubId}")]
+    Task<IApiResponse<ClubDto>> GetClubAsync(string clubId, CancellationToken cancellationToken);
+
     [Get("/api/v4/clubs/my")]
     Task<IApiResponse<MyClubResponse>> GetOwnClubAsync(CancellationToken cancellationToken);
 
@@ -42,6 +51,9 @@ internal interface IGeoGuessrRestApi
 
     [Get("/api/v4/ranked-system/progress/{userId}")]
     Task<RankedProgressDto> GetRankedProgressAsync(string userId, CancellationToken cancellationToken);
+
+    [Get("/api/v4/ranked-system/progress/{userId}")]
+    Task<IApiResponse<RankedProgressDto>> TryGetRankedProgressAsync(string userId, CancellationToken cancellationToken);
 
     [Get("/api/v4/season-pass/me")]
     Task<IApiResponse<SeasonPassDto>> GetSeasonPassAsync(CancellationToken cancellationToken);
