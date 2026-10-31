@@ -11,16 +11,11 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["global.json", "Directory.Build.props", "Directory.Packages.props", "./"]
 COPY ["GeoGuessrAccountShadowBot.Domain/GeoGuessrAccountShadowBot.Domain.csproj", "GeoGuessrAccountShadowBot.Domain/"]
-COPY ["GeoGuessrAccountShadowBot.Domain/packages.lock.json", "GeoGuessrAccountShadowBot.Domain/"]
 COPY ["GeoGuessrAccountShadowBot.Application/GeoGuessrAccountShadowBot.Application.csproj", "GeoGuessrAccountShadowBot.Application/"]
-COPY ["GeoGuessrAccountShadowBot.Application/packages.lock.json", "GeoGuessrAccountShadowBot.Application/"]
 COPY ["GeoGuessrAccountShadowBot.Infrastructure/GeoGuessrAccountShadowBot.Infrastructure.csproj", "GeoGuessrAccountShadowBot.Infrastructure/"]
-COPY ["GeoGuessrAccountShadowBot.Infrastructure/packages.lock.json", "GeoGuessrAccountShadowBot.Infrastructure/"]
 COPY ["GeoGuessrAccountShadowBot.Discord/GeoGuessrAccountShadowBot.Discord.csproj", "GeoGuessrAccountShadowBot.Discord/"]
-COPY ["GeoGuessrAccountShadowBot.Discord/packages.lock.json", "GeoGuessrAccountShadowBot.Discord/"]
 COPY ["GeoGuessrAccountShadowBot.Host/GeoGuessrAccountShadowBot.Host.csproj", "GeoGuessrAccountShadowBot.Host/"]
-COPY ["GeoGuessrAccountShadowBot.Host/packages.lock.json", "GeoGuessrAccountShadowBot.Host/"]
-RUN dotnet restore "GeoGuessrAccountShadowBot.Host/GeoGuessrAccountShadowBot.Host.csproj" --locked-mode
+RUN dotnet restore "GeoGuessrAccountShadowBot.Host/GeoGuessrAccountShadowBot.Host.csproj"
 COPY . .
 RUN dotnet publish "GeoGuessrAccountShadowBot.Host/GeoGuessrAccountShadowBot.Host.csproj" -c $BUILD_CONFIGURATION -o /app/publish --no-restore /p:UseAppHost=false
 

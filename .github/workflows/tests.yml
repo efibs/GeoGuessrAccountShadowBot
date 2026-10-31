@@ -25,10 +25,10 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
       - name: Restore
-        run: dotnet restore GeoGuessrAccountShadowBot.sln --locked-mode
+        run: dotnet restore GeoGuessrAccountShadowBot.sln
       - name: Check formatting
         run: dotnet format GeoGuessrAccountShadowBot.sln --no-restore --verify-no-changes
       - name: Build

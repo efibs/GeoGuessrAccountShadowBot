@@ -2,7 +2,7 @@
 
 This project is licensed under the GNU General Public License, version 2 or (at your option) any later version.
 
-The published image contains these third-party packages, as resolved in `packages.lock.json`:
+The published image contains these third-party packages, with versions set in `Directory.Packages.props`:
 
 | License | Packages |
 |---|---|
