@@ -39,6 +39,15 @@ public sealed class CompositionTests
     }
 
     [Fact]
+    public void SettingsFiles_AreFoundNextToTheExecutable_WhateverTheWorkingDirectory()
+    {
+        var builder = ShadowHost.CreateBuilder([]);
+
+        Path.TrimEndingDirectorySeparator(builder.Environment.ContentRootPath)
+            .Should().Be(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory));
+    }
+
+    [Fact]
     public void EveryHostedService_CanBeBuilt()
     {
         using var host = BuildHost();

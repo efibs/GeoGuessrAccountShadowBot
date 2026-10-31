@@ -49,6 +49,30 @@ public sealed partial class PlayerDirectory(
         return cached is not null ? new UntrustedText(cached.Nick) : Fallback(userId);
     }
 
+    /// <summary>
+    /// Reads a full profile, for the moments it's worth the extra requests. It's never cached, since
+    /// someone's standing should be current when you decide about them. Returns null on failure,
+    /// because a friend request has to be shown either way.
+    /// </summary>
+    public async Task<PlayerProfile?> GetProfileAsync(string userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var profile = await api.GetPlayerProfileAsync(userId, cancellationToken).ConfigureAwait(false);
+            if (profile is not null)
+            {
+                await store.SavePlayerNameAsync(new PlayerName(userId, profile.Nick, timeProvider.GetUtcNow()), cancellationToken).ConfigureAwait(false);
+            }
+
+            return profile;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            LogLookupFailed(exception, userId);
+            return null;
+        }
+    }
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Could not look up the name of player {UserId}")]
     private partial void LogLookupFailed(Exception exception, string userId);
 }

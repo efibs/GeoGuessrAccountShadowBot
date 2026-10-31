@@ -34,6 +34,12 @@ public interface IGeoGuessrApi
     /// <summary>The player's current name, or null if the player can't be found.</summary>
     Task<string?> GetPlayerNickAsync(string userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Everything public about a player, or null if the player can't be found. Only the base profile
+    /// is required: a missing club name or rating leaves that part empty instead of failing.
+    /// </summary>
+    Task<PlayerProfile?> GetPlayerProfileAsync(string userId, CancellationToken cancellationToken = default);
+
     /// <summary>The account's club, or null if it isn't in one.</summary>
     Task<string?> GetOwnClubIdAsync(CancellationToken cancellationToken = default);
 

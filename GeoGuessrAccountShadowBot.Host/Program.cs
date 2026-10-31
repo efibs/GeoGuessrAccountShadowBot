@@ -3,8 +3,7 @@
 using GeoGuessrAccountShadowBot.Host;
 using Microsoft.Extensions.Hosting;
 
-var builder = Host.CreateApplicationBuilder(args);
-builder.AddShadowConfiguration(args);
+var builder = ShadowHost.CreateBuilder(args);
 builder.AddShadowBot();
 
 try

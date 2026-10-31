@@ -42,6 +42,31 @@ internal sealed record ClubMemberDto(ClubMemberUserDto User, int Role);
 
 internal sealed record ClubMemberUserDto(string UserId, string Nick);
 
-internal sealed record RankedProgressDto(int? DivisionNumber, string? DivisionName, int? Rating);
+internal sealed record RankedProgressDto(int? DivisionNumber, string? DivisionName, int? Rating, List<bool>? LatestGames = null);
+
+internal sealed record RankedPeakRatingDto(int? PeakOverallRating);
+
+internal sealed record UserDto(
+    string Id,
+    string Nick,
+    DateTimeOffset? Created,
+    bool IsProUser,
+    string? Type,
+    string? CustomImage,
+    UserPinDto? Pin,
+    string? CountryCode,
+    bool IsBanned,
+    bool ChatBan,
+    DateTimeOffset? SuspendedUntil,
+    UserProgressDto? Progress,
+    UserClubDto? Club);
+
+internal sealed record UserPinDto(string? Url);
+
+internal sealed record UserProgressDto(int? Level);
+
+internal sealed record UserClubDto(string ClubId, string Tag, int Level);
+
+internal sealed record ClubDto(string? Name);
 
 internal sealed record SeasonPassDto(string? SeasonId);

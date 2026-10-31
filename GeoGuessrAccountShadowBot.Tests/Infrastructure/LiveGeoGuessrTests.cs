@@ -125,6 +125,19 @@ public sealed class LiveGeoGuessrTests : IAsyncLifetime
     }
 
     [LiveFact]
+    public async Task PlayerProfile_DecodesForARealPlayer()
+    {
+        var friend = (await Api.GetFriendshipsAsync()).Friends.First();
+
+        var profile = (await Api.GetPlayerProfileAsync(friend))!;
+
+        profile.Nick.Should().NotBeNullOrEmpty();
+        profile.CreatedAt.Should().NotBeNull();
+        GeoGuessrAccountShadowBot.Discord.Rendering.CardRenderer.RenderFriendRequest(profile, DateTimeOffset.UtcNow)
+            .ToEmbed().Thumbnail.Should().NotBeNull("every real player has a pin");
+    }
+
+    [LiveFact]
     public async Task OwnClub_DecodesEvenWithoutOne()
     {
         await Api.GetOwnClubIdAsync();
