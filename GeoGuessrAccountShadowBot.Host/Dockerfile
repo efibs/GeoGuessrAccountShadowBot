@@ -1,6 +1,6 @@
 # Base images are pinned by digest for reproducible, tamper-evident builds. Dependabot raises pull
 # requests to bump them.
-FROM mcr.microsoft.com/dotnet/runtime:10.0@sha256:a3f9f81954b9c810af2ed18849716c8dc74a4707bd0907fdbd69be81554c0f30 AS base
+FROM mcr.microsoft.com/dotnet/runtime:10.0@sha256:4f1f30cf0bb4ab0c8b2daa84613051683456f8df4a9bf7c812e20d74962992ac AS base
 # Created before switching user, so that a named volume mounted here inherits this ownership.
 RUN install -d -o 1654 -g 1654 -m 0750 /data
 USER 1654
