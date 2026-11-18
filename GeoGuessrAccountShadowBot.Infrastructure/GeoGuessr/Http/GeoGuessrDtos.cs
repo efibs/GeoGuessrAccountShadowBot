@@ -70,3 +70,11 @@ internal sealed record UserClubDto(string ClubId, string Tag, int Level);
 internal sealed record ClubDto(string? Name);
 
 internal sealed record SeasonPassDto(string? SeasonId);
+
+/// <summary>The site merges this list with invitations, so entries carry their kind.</summary>
+internal sealed record ClubApplicationsResponse(List<ClubApplicationDto>? Items);
+
+/// <summary><c>clubUserType</c> is 3 for an application and 2 for an invitation.</summary>
+internal sealed record ClubApplicationDto(string UserId, string? Nick, int ClubUserType);
+
+internal sealed record ClubApplicationAnswer(string UserId);

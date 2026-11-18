@@ -31,11 +31,13 @@ internal sealed class ShadowTestHost : IAsyncDisposable
     public const ulong AuthorizedUser = 600;
 
     private readonly SqliteConnection _connection;
+    private readonly IConfiguration? _configuration;
     private ServiceProvider _services = null!;
 
-    private ShadowTestHost(SqliteConnection connection, ShadowOptions options)
+    private ShadowTestHost(SqliteConnection connection, ShadowOptions options, IConfiguration? configuration)
     {
         _connection = connection;
+        _configuration = configuration;
         Options = options;
     }
 
@@ -55,7 +57,9 @@ internal sealed class ShadowTestHost : IAsyncDisposable
 
     public T Get<T>() where T : notnull => _services.GetRequiredService<T>();
 
-    public static async Task<ShadowTestHost> CreateAsync(Action<ShadowOptions>? configure = null)
+    /// <param name="configure">Changes to the valid test options.</param>
+    /// <param name="configuration">Raw configuration, for what isn't bound to options, such as automation rules.</param>
+    public static async Task<ShadowTestHost> CreateAsync(Action<ShadowOptions>? configure = null, IConfiguration? configuration = null)
     {
         var options = TestOptions.Valid();
         configure?.Invoke(options);
@@ -63,7 +67,7 @@ internal sealed class ShadowTestHost : IAsyncDisposable
         var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
 
-        var host = new ShadowTestHost(connection, options);
+        var host = new ShadowTestHost(connection, options, configuration);
         host._services = host.Build(new ServiceCollection());
 
         var scope = host._services.CreateAsyncScope();
@@ -90,7 +94,13 @@ internal sealed class ShadowTestHost : IAsyncDisposable
         services.AddSingleton<IDiscordPublisher>(Publisher);
         services.AddSingleton<IDiscordReadiness>(Substitute.For<IDiscordReadiness>());
         services.AddDbContext<ShadowDbContext>(options => options.UseSqlite(_connection));
-        services.AddScoped<IShadowStore, EfShadowStore>();
+        services.AddScoped<EfShadowStore>();
+        services.AddScoped<IShadowStore>(provider => provider.GetRequiredService<EfShadowStore>());
+        services.AddScoped<IAutomationStore>(provider => provider.GetRequiredService<EfShadowStore>());
+        if (_configuration is not null)
+        {
+            services.AddSingleton(_configuration);
+        }
 
         return services.BuildServiceProvider();
     }

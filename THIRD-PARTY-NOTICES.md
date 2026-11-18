@@ -6,7 +6,8 @@ The published image contains these third-party packages, with versions set in `D
 
 | License | Packages |
 |---|---|
-| MIT | Discord.Net, Refit, Entity Framework Core, Microsoft.Extensions.*, and their dependencies |
+| MIT | Discord.Net, Refit, Entity Framework Core, Microsoft.Extensions.*, Cronos, and their dependencies |
+| BSD-2-Clause | Scriban |
 | BSD-3-Clause | Polly.Core, Polly.Extensions, Polly.RateLimiting |
 | Apache-2.0 | SQLitePCLRaw.bundle_e_sqlite3, SQLitePCLRaw.core, SQLitePCLRaw.lib.e_sqlite3, SQLitePCLRaw.provider.e_sqlite3 |
 | Public domain | SQLite, bundled by SQLitePCLRaw |

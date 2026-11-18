@@ -32,6 +32,7 @@ public sealed class HttpRoundTripTests : IAsyncLifetime
     private readonly Dictionary<string, (int Status, string Body)> _responses = [];
     private readonly List<string> _requests = [];
     private readonly List<string?> _cookies = [];
+    private readonly List<string> _bodies = [];
     private readonly AccountContext _account = new();
 
     private WebApplication _server = null!;
@@ -44,21 +45,29 @@ public sealed class HttpRoundTripTests : IAsyncLifetime
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseKestrel().UseUrls("http://127.0.0.1:0");
         _server = builder.Build();
-        _server.Run(context =>
+        _server.Run(async context =>
         {
             var request = $"{context.Request.Method} {context.Request.Path}{context.Request.QueryString}";
             _requests.Add(request);
             _cookies.Add(context.Request.Headers.Cookie);
+            using (var reader = new StreamReader(context.Request.Body, Encoding.UTF8))
+            {
+                _bodies.Add(await reader.ReadToEndAsync());
+            }
 
             if (!_responses.TryGetValue(request, out var response))
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                return context.Response.WriteAsync($"unexpected request: {request}");
+                await context.Response.WriteAsync($"unexpected request: {request}");
+                return;
             }
 
             context.Response.StatusCode = response.Status;
             context.Response.ContentType = "application/json";
-            return response.Body.Length == 0 ? Task.CompletedTask : context.Response.WriteAsync(response.Body, Encoding.UTF8);
+            if (response.Body.Length > 0)
+            {
+                await context.Response.WriteAsync(response.Body, Encoding.UTF8);
+            }
         });
         await _server.StartAsync();
 
@@ -287,6 +296,51 @@ public sealed class HttpRoundTripTests : IAsyncLifetime
         Given($"DELETE /api/v3/social/friends/{Peer}", """{"message":"ok"}""");
 
         (await Api.DeclineFriendRequestAsync(Peer)).IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SendFriendRequest_IsAPost()
+    {
+        Given($"POST /api/v3/social/friends/{Peer}?context=", """{"message":"ok"}""");
+
+        (await Api.SendFriendRequestAsync(Peer)).IsSuccess.Should().BeTrue();
+        _requests.Should().ContainSingle("a change is never retried");
+    }
+
+    [Fact]
+    public async Task ClubApplications_KeepOnlyApplicants()
+    {
+        Given("GET /api/v4/clubs/club1/applications", $$"""
+            {"items":[
+              {"userId":"{{Peer}}","nick":"applicant","clubUserType":3,"avatar":null,"borderUrl":null,"tierId":1},
+              {"userId":"cccccccccccccccccccccccc","nick":"invited","clubUserType":2}
+            ]}
+            """);
+
+        var applications = await Api.GetClubApplicationsAsync("club1");
+
+        applications!.Pending.Keys.Should().Equal(Peer);
+        applications.Pending[Peer].Nick.Should().Be("applicant");
+    }
+
+    [Fact]
+    public async Task ClubApplications_AreNullWithoutThePermission()
+    {
+        Given("GET /api/v4/clubs/club1/applications", """{"message":"forbidden"}""", 403);
+
+        (await Api.GetClubApplicationsAsync("club1")).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ClubApplicationAnswers_PostTheUserId()
+    {
+        Given("POST /api/v4/clubs/club1/accept-application", "");
+        Given("POST /api/v4/clubs/club1/decline-application", "");
+
+        (await Api.AcceptClubApplicationAsync("club1", Peer)).IsSuccess.Should().BeTrue();
+        (await Api.DeclineClubApplicationAsync("club1", Peer)).IsSuccess.Should().BeTrue();
+
+        _bodies.Should().Equal($$"""{"userId":"{{Peer}}"}""", $$"""{"userId":"{{Peer}}"}""");
     }
 
     [Fact]

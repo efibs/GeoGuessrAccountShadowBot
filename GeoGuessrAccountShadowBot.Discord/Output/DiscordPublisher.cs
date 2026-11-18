@@ -4,6 +4,7 @@ using System.Net;
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
+using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Application.Notifications;
 using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Application.Ports;
@@ -21,6 +22,7 @@ namespace GeoGuessrAccountShadowBot.Discord.Output;
 internal sealed class DiscordPublisher(
     DiscordSocketClient client,
     IShadowStore store,
+    IAutomationStore automations,
     PlayerDirectory players,
     ForumPostMaintenance postMaintenance,
     IOptions<ShadowOptions> options,
@@ -45,6 +47,11 @@ internal sealed class DiscordPublisher(
                 FriendRequestOutcome outcome => PublishFriendRequestOutcomeAsync(outcome, cancellationToken),
                 StatusMessage status => PublishStatusAsync(status),
                 ReplyFeedback feedback => PublishReplyFeedbackAsync(feedback),
+                AutomationPost post => PublishAutomationPostAsync(post),
+                AutomationForumNote note => PublishToPartnerAsync(note.PartnerUserId, AutomationRenderer.RenderForumNote(note), cancellationToken),
+                AutomationReport report => PublishAutomationReportAsync(report, cancellationToken),
+                AutomationApprovalRequest request => PublishApprovalRequestAsync(request, cancellationToken),
+                AutomationApprovalOutcome outcome => PublishApprovalOutcomeAsync(outcome, cancellationToken),
                 _ => throw new InvalidOperationException($"Unknown outbox message {message.GetType().Name}.")
             }).ConfigureAwait(false);
 
@@ -80,15 +87,22 @@ internal sealed class DiscordPublisher(
     private async Task PublishChatLineAsync(ChatLine line, CancellationToken cancellationToken)
     {
         var nick = await players.GetNickAsync(line.PartnerUserId, cancellationToken).ConfigureAwait(false);
-        var chunks = MessageChunker.Chunk(CardRenderer.RenderChatLine(line, nick, timeProvider.GetUtcNow()));
+        await PublishToPartnerAsync(line.PartnerUserId, CardRenderer.RenderChatLine(line, nick, timeProvider.GetUtcNow()), cancellationToken).ConfigureAwait(false);
+    }
 
-        var mapped = await store.FindPartnerThreadAsync(line.PartnerUserId, cancellationToken).ConfigureAwait(false);
+    /// <summary>Posts in the partner's forum post, creating it if there is none.</summary>
+    private async Task PublishToPartnerAsync(string partnerUserId, string content, CancellationToken cancellationToken)
+    {
+        var nick = await players.GetNickAsync(partnerUserId, cancellationToken).ConfigureAwait(false);
+        var chunks = MessageChunker.Chunk(content);
+
+        var mapped = await store.FindPartnerThreadAsync(partnerUserId, cancellationToken).ConfigureAwait(false);
         if (mapped is not null && await TrySendToThreadAsync(mapped, chunks, nick, cancellationToken).ConfigureAwait(false))
         {
             return;
         }
 
-        await CreatePostAsync(line.PartnerUserId, nick, chunks, cancellationToken).ConfigureAwait(false);
+        await CreatePostAsync(partnerUserId, nick, chunks, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Sends to an existing post, and returns false if that post no longer exists.</summary>
@@ -246,6 +260,67 @@ internal sealed class DiscordPublisher(
                 messageReference: new MessageReference(feedback.MessageId),
                 allowedMentions: MentionPolicy.Nobody()).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>A rule's channel, else the automation report channel, else the status channel.</summary>
+    private ulong AutomationChannel(ulong? channelId) =>
+        channelId ?? Settings.Control.Automation.ReportChannelId ?? Settings.Discord.StatusChannelId ?? Settings.Discord.DefaultChannelId;
+
+    private async Task PublishAutomationPostAsync(AutomationPost post)
+    {
+        var channel = await RequireChannelAsync<IMessageChannel>(AutomationChannel(post.ChannelId)).ConfigureAwait(false);
+        await channel.SendMessageAsync(
+            MentionPolicy.PingLine(post.PingRoleIds),
+            embed: AutomationRenderer.RenderPost(post).ToEmbed(),
+            allowedMentions: MentionPolicy.Roles(post.PingRoleIds)).ConfigureAwait(false);
+    }
+
+    private async Task PublishAutomationReportAsync(AutomationReport report, CancellationToken cancellationToken)
+    {
+        var channel = await RequireChannelAsync<IMessageChannel>(AutomationChannel(report.ChannelId)).ConfigureAwait(false);
+        var nick = report.SubjectUserId is { } subject ? await players.GetNickAsync(subject, cancellationToken).ConfigureAwait(false) : (UntrustedText?)null;
+        await channel.SendMessageAsync(
+            embed: AutomationRenderer.RenderReport(report, nick).ToEmbed(),
+            allowedMentions: MentionPolicy.Nobody()).ConfigureAwait(false);
+    }
+
+    private async Task PublishApprovalRequestAsync(AutomationApprovalRequest request, CancellationToken cancellationToken)
+    {
+        var channel = await RequireChannelAsync<IMessageChannel>(AutomationChannel(request.ChannelId)).ConfigureAwait(false);
+        var nick = request.SubjectUserId is { } subject ? await players.GetNickAsync(subject, cancellationToken).ConfigureAwait(false) : (UntrustedText?)null;
+        var buttons = new ComponentBuilder()
+            .WithButton("Approve", AutomationButtonIds.Approve(request.RunId), ButtonStyle.Success)
+            .WithButton("Reject", AutomationButtonIds.Reject(request.RunId), ButtonStyle.Danger)
+            .Build();
+
+        var message = await channel.SendMessageAsync(
+            embed: AutomationRenderer.RenderApproval(request, nick).ToEmbed(),
+            components: buttons,
+            allowedMentions: MentionPolicy.Nobody()).ConfigureAwait(false);
+
+        await automations.SetApprovalMessageAsync(request.RunId, channel.Id, message.Id, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task PublishApprovalOutcomeAsync(AutomationApprovalOutcome outcome, CancellationToken cancellationToken)
+    {
+        if (await automations.FindRunAsync(outcome.RunId, cancellationToken).ConfigureAwait(false) is not { ApprovalChannelId: { } channelId, ApprovalMessageId: { } messageId })
+        {
+            return;
+        }
+
+        var channel = await FindChannelAsync<IMessageChannel>(channelId).ConfigureAwait(false);
+        if (channel is null || await channel.GetMessageAsync(messageId).ConfigureAwait(false) is not IUserMessage message)
+        {
+            return;
+        }
+
+        var decision = AutomationRenderer.DescribeDecision(outcome);
+        await message.ModifyAsync(properties =>
+        {
+            properties.Content = decision;
+            properties.Components = new ComponentBuilder().Build();
+            properties.AllowedMentions = MentionPolicy.Nobody();
+        }).ConfigureAwait(false);
     }
 
     private async Task<T> RequireChannelAsync<T>(ulong channelId) where T : class, IChannel =>

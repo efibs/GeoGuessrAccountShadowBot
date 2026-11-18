@@ -34,6 +34,7 @@ public static class EventKeys
     public const string ClubMemberLeft = nameof(ClubMemberLeft);
     public const string ClubRoleChanged = nameof(ClubRoleChanged);
     public const string ClubMissionBoard = nameof(ClubMissionBoard);
+    public const string ClubApplicationReceived = nameof(ClubApplicationReceived);
 
     public const string RankedDivisionChanged = nameof(RankedDivisionChanged);
     public const string SeasonChanged = nameof(SeasonChanged);
@@ -44,7 +45,7 @@ public static class EventKeys
         DmMessage, FriendRequestReceived, FriendRequestAccepted, FriendPresence,
         InviteGame, InviteChallenge, InviteTeam, InviteParty, InviteClub, ClubApplicationAccepted,
         BadgeUnlocked, StreakAtRisk, StreakSaved, ModerationAction, RatingRefund, ActivityReaction, AccountOther,
-        ClubChat, ClubMemberJoined, ClubMemberLeft, ClubRoleChanged, ClubMissionBoard,
+        ClubChat, ClubMemberJoined, ClubMemberLeft, ClubRoleChanged, ClubMissionBoard, ClubApplicationReceived,
         RankedDivisionChanged, SeasonChanged
     ]);
 }

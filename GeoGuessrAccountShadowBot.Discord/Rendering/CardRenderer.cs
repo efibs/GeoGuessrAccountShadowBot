@@ -133,9 +133,12 @@ public static class CardRenderer
     /// </summary>
     public static string RenderChatLine(ChatLine line, UntrustedText partnerNick, DateTimeOffset now)
     {
-        var author = line.Origin == ChatLineOrigin.Partner
-            ? UntrustedMarkdown.Escape(partnerNick)
-            : "This account, via another login";
+        var author = line.Origin switch
+        {
+            ChatLineOrigin.Partner => UntrustedMarkdown.Escape(partnerNick),
+            ChatLineOrigin.Automation => $"This account, via automation {line.AutomationRule}",
+            _ => "This account, via another login"
+        };
         var isLate = now - line.SentAt > TimeSpan.FromMinutes(1);
         var time = isLate ? $" (<t:{line.SentAt.ToUnixTimeSeconds()}:f>)" : "";
 

@@ -39,8 +39,9 @@ public static class ChatText
 }
 
 /// <summary>
-/// Mirrors a direct message. An outgoing message is matched against replies sent through the bot:
-/// those only need confirming, and anything else came from another login and is worth showing.
+/// Mirrors a direct message. An outgoing message is matched against messages sent through the bot:
+/// a reply typed in Discord only needs confirming, a message from an automation is shown as such,
+/// and anything else came from another login and is worth showing.
 /// </summary>
 public sealed class DirectMessageHandler(IShadowStore store, IEventContext context, AccountContext account)
     : IShadowEventHandler<DirectMessageReceived>
@@ -56,7 +57,9 @@ public sealed class DirectMessageHandler(IShadowStore store, IEventContext conte
             if (pending is not null)
             {
                 await store.RemovePendingReplyAsync(pending.Id, cancellationToken).ConfigureAwait(false);
-                context.Notify(new ReplyFeedback(pending.ThreadId, pending.MessageId, ReplyFeedbackKind.Delivered, null));
+                context.Notify(pending.IsFromAutomation
+                    ? new ChatLine(peerId, ChatLineOrigin.Automation, new UntrustedText(sentText), message.SentAt, pending.AutomationRule)
+                    : new ReplyFeedback(pending.ThreadId, pending.MessageId, ReplyFeedbackKind.Delivered, null));
                 return;
             }
         }

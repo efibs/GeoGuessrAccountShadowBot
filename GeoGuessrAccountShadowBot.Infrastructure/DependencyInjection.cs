@@ -29,7 +29,9 @@ public static class DependencyInjection
     public static IServiceCollection AddShadowPersistence(this IServiceCollection services, string databasePath)
     {
         services.AddDbContext<ShadowDbContext>(options => options.UseSqlite($"Data Source={databasePath}"));
-        services.AddScoped<IShadowStore, EfShadowStore>();
+        services.AddScoped<EfShadowStore>();
+        services.AddScoped<IShadowStore>(provider => provider.GetRequiredService<EfShadowStore>());
+        services.AddScoped<IAutomationStore>(provider => provider.GetRequiredService<EfShadowStore>());
         services.AddHostedService<DatabaseInitializer>();
         return services;
     }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 using System.Text.Json.Serialization;
+using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Domain.Model;
 
 namespace GeoGuessrAccountShadowBot.Application.Notifications;
@@ -15,6 +16,11 @@ namespace GeoGuessrAccountShadowBot.Application.Notifications;
 [JsonDerivedType(typeof(FriendRequestOutcome), "friendRequestOutcome")]
 [JsonDerivedType(typeof(StatusMessage), "status")]
 [JsonDerivedType(typeof(ReplyFeedback), "replyFeedback")]
+[JsonDerivedType(typeof(AutomationPost), "automationPost")]
+[JsonDerivedType(typeof(AutomationForumNote), "automationNote")]
+[JsonDerivedType(typeof(AutomationReport), "automationReport")]
+[JsonDerivedType(typeof(AutomationApprovalRequest), "automationApproval")]
+[JsonDerivedType(typeof(AutomationApprovalOutcome), "automationApprovalOutcome")]
 public abstract record OutboxMessage;
 
 /// <summary>The look of a card, which carries meaning at a glance.</summary>
@@ -52,17 +58,26 @@ public enum ChatLineOrigin
     Partner,
 
     /// <summary>The account, from a browser or another login rather than through the bot.</summary>
-    OtherLogin
+    OtherLogin,
+
+    /// <summary>The account, sent by an automation rule.</summary>
+    Automation
 }
 
 /// <summary>
 /// One chat message in the forum post of its partner.
 /// </summary>
+/// <param name="PartnerUserId">The chat partner.</param>
+/// <param name="Origin">Who wrote it.</param>
+/// <param name="Text">The message.</param>
+/// <param name="SentAt">When GeoGuessr says it was sent.</param>
+/// <param name="AutomationRule">The rule that sent it, for <see cref="ChatLineOrigin.Automation"/>.</param>
 public sealed record ChatLine(
     string PartnerUserId,
     ChatLineOrigin Origin,
     UntrustedText Text,
-    DateTimeOffset SentAt) : OutboxMessage;
+    DateTimeOffset SentAt,
+    string? AutomationRule = null) : OutboxMessage;
 
 /// <summary>
 /// A card for an incoming friend request, with buttons when those are enabled.

@@ -103,6 +103,10 @@ All under `https://www.geoguessr.com`, with the `_ncfa` cookie.
 | `DELETE /api/v3/social/friends/<id>` | Declines a request | Observed |
 | `PUT /api/v3/social/friends/<id>?context=` | **Accepts a request** | From the client |
 | `GET /api/v4/clubs/<id>/members`, `/chat` | Club | From GeoClubBot and the client |
+| `GET /api/v4/clubs/<id>/applications` | Pending applications, in `items` | From the client |
+| `POST /api/v4/clubs/<id>/accept-application`, `/decline-application` | Answers one, with `{"userId"}` | From the client |
+
+The site merges `/applications` with `/invitations` and tells them apart by `clubUserType`: 3 is an application and 2 an invitation. Entries have `userId` and `nick`. The site only shows them to members with the `ManageApplications` permission, so others are assumed to get 403. No frame announces a new application, so they're polled.
 
 Profile pictures are `customImage`, usually null, or else `pin.url`, which is a relative path. Both work under `https://www.geoguessr.com/images/resize:fit:192:0/gravity:ce/plain/<path>`, without a session.
 
@@ -113,6 +117,7 @@ Profile pictures are `customImage`, usually null, or else `pin.url`, which is a 
 ## Not yet verified
 
 - Accepting an incoming request with `PUT`.
-- Everything about clubs, because the test account isn't in one.
+- Everything about clubs, because the test account isn't in one. That includes reading and answering applications, and the 403 without the permission.
+- Sending a friend request as an automation, although the request itself was observed.
 - What triggers close code 4100, and what signing out does to a live socket.
 - Reply delivery when an archived forum post is reopened after a restart.

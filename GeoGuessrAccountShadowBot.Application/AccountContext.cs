@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using GeoGuessrAccountShadowBot.Application.Reconciliation;
@@ -38,6 +39,7 @@ public sealed class AccountInitializer(
     IGeoGuessrApi api,
     IServiceScopeFactory scopes,
     IOptions<ShadowOptions> options,
+    AutomationRuleRegistry automations,
     AccountContext account)
 {
     private const string AccountStateKey = "account";
@@ -78,6 +80,9 @@ public sealed class AccountInitializer(
             }
 
             await store.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+            // Rules have to be in effect before the first event can start one.
+            await automations.ReloadAsync(store, scope.ServiceProvider.GetRequiredService<IAutomationStore>(), cancellationToken).ConfigureAwait(false);
         }
 
         account.Set(userId, clubId);

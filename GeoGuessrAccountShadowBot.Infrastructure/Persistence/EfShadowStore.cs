@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 using System.Text.Json;
+using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Application.Notifications;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ namespace GeoGuessrAccountShadowBot.Infrastructure.Persistence;
 /// <summary>
 /// Keeps everything in one change tracker, so <see cref="CommitAsync"/> writes one transaction.
 /// </summary>
-internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeProvider) : IShadowStore
+internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeProvider) : IShadowStore, IAutomationStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -175,14 +176,15 @@ internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeP
         }
     }
 
-    public void AddPendingReply(string peerId, string textHash, ulong threadId, ulong messageId, DateTimeOffset createdAt) =>
+    public void AddPendingReply(string peerId, string textHash, ulong threadId, ulong messageId, DateTimeOffset createdAt, string? automationRule = null) =>
         database.PendingReplies.Add(new PendingReplyRow
         {
             PeerId = peerId,
             TextHash = textHash,
             ThreadId = threadId,
             MessageId = messageId,
-            CreatedAt = createdAt
+            CreatedAt = createdAt,
+            AutomationRule = automationRule
         });
 
     public async Task<PendingReply?> FindPendingReplyAsync(string peerId, string textHash, CancellationToken cancellationToken = default)
@@ -256,6 +258,152 @@ internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeP
             .ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<StoredAutomationRule>> ReadRulesAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await database.AutomationRules.AsNoTracking().OrderBy(row => row.Name).ToListAsync(cancellationToken).ConfigureAwait(false);
+        return rows.Select(ToRule).ToArray();
+    }
+
+    public async Task<StoredAutomationRule?> FindRuleAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var row = await database.AutomationRules.FindAsync([name], cancellationToken).ConfigureAwait(false);
+        return row is null ? null : ToRule(row);
+    }
+
+    public async Task SaveRuleAsync(StoredAutomationRule rule, CancellationToken cancellationToken = default)
+    {
+        var row = await database.AutomationRules.FindAsync([rule.Name], cancellationToken).ConfigureAwait(false);
+        if (row is null)
+        {
+            database.AutomationRules.Add(new AutomationRuleRow { Name = rule.Name, Json = rule.Json, UpdatedBy = rule.UpdatedBy, UpdatedAt = rule.UpdatedAt });
+            return;
+        }
+
+        row.Json = rule.Json;
+        row.UpdatedBy = rule.UpdatedBy;
+        row.UpdatedAt = rule.UpdatedAt;
+    }
+
+    public async Task DeleteRuleAsync(string name, CancellationToken cancellationToken = default)
+    {
+        if (await database.AutomationRules.FindAsync([name], cancellationToken).ConfigureAwait(false) is { } row)
+        {
+            database.AutomationRules.Remove(row);
+        }
+    }
+
+    public IAutomationRunHandle AddRun(AutomationRun run)
+    {
+        var row = new AutomationRunRow
+        {
+            RuleName = run.RuleName,
+            RuleJson = run.RuleJson,
+            Trigger = run.Trigger,
+            GroupKey = run.GroupKey,
+            EventJson = run.EventJson,
+            CreatedAt = run.CreatedAt,
+            OccurredAt = run.OccurredAt,
+            ResumeAt = run.ResumeAt,
+            LogJson = "[]"
+        };
+        Copy(run, row);
+        database.AutomationRuns.Add(row);
+        return new RunHandle(row);
+    }
+
+    public async Task<AutomationRun?> FindRunAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var row = await database.AutomationRuns.FindAsync([id], cancellationToken).ConfigureAwait(false);
+        return row is null ? null : ToRun(row);
+    }
+
+    public async Task UpdateRunAsync(AutomationRun run, CancellationToken cancellationToken = default)
+    {
+        var row = await database.AutomationRuns.FindAsync([run.Id], cancellationToken).ConfigureAwait(false)
+                  ?? throw new InvalidOperationException($"Automation run {run.Id} doesn't exist.");
+        Copy(run, row);
+    }
+
+    public Task SetApprovalMessageAsync(long runId, ulong channelId, ulong messageId, CancellationToken cancellationToken = default) =>
+        database.AutomationRuns
+            .Where(row => row.Id == runId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(row => row.ApprovalChannelId, channelId)
+                .SetProperty(row => row.ApprovalMessageId, messageId), cancellationToken);
+
+    public async Task<IReadOnlyList<long>> ReadDueRunIdsAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken = default) =>
+        await database.AutomationRuns
+            .AsNoTracking()
+            .Where(row => row.FinishedAt == null && row.ResumeAt <= now)
+            .OrderBy(row => row.Id)
+            .Take(limit)
+            .Select(row => row.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<AutomationRun>> ReadOpenRunsAsync(string? ruleName, CancellationToken cancellationToken = default)
+    {
+        var rows = await database.AutomationRuns
+            .AsNoTracking()
+            .Where(row => row.FinishedAt == null && (ruleName == null || row.RuleName == ruleName))
+            .OrderBy(row => row.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return rows.Select(ToRun).ToArray();
+    }
+
+    public async Task<IReadOnlyList<AutomationRun>> ReadOpenRunsInGroupAsync(string groupKey, long exceptId, CancellationToken cancellationToken = default)
+    {
+        var rows = await database.AutomationRuns
+            .Where(row => row.GroupKey == groupKey && row.Id != exceptId && row.FinishedAt == null)
+            .OrderBy(row => row.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return rows.Select(ToRun).ToArray();
+    }
+
+    public async Task<IReadOnlyList<AutomationRun>> ReadRecentRunsAsync(string? ruleName, int limit, CancellationToken cancellationToken = default)
+    {
+        var rows = await database.AutomationRuns
+            .AsNoTracking()
+            .Where(row => ruleName == null || row.RuleName == ruleName)
+            .OrderByDescending(row => row.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return rows.Select(ToRun).ToArray();
+    }
+
+    public Task<int> CountAdmittedRunsAsync(string ruleName, string? subjectUserId, DateTimeOffset since, CancellationToken cancellationToken = default) =>
+        database.AutomationRuns
+            .AsNoTracking()
+            .Where(row => row.RuleName == ruleName && !row.DryRun && row.AdmittedAt != null && row.AdmittedAt >= since)
+            .Where(row => subjectUserId == null || row.SubjectUserId == subjectUserId)
+            .CountAsync(cancellationToken);
+
+    public async Task<DateTimeOffset?> FindLastRunForPlayerAsync(string ruleName, string subjectUserId, CancellationToken cancellationToken = default)
+    {
+        var row = await database.AutomationPlayerRuns.FindAsync([ruleName, subjectUserId], cancellationToken).ConfigureAwait(false);
+        return row?.LastRunAt;
+    }
+
+    public async Task RecordRunForPlayerAsync(string ruleName, string subjectUserId, DateTimeOffset at, CancellationToken cancellationToken = default)
+    {
+        var row = await database.AutomationPlayerRuns.FindAsync([ruleName, subjectUserId], cancellationToken).ConfigureAwait(false);
+        if (row is null)
+        {
+            database.AutomationPlayerRuns.Add(new AutomationPlayerRunRow { RuleName = ruleName, SubjectUserId = subjectUserId, LastRunAt = at });
+            return;
+        }
+
+        row.LastRunAt = at;
+    }
+
+    public Task PruneRunsAsync(DateTimeOffset finishedBefore, CancellationToken cancellationToken = default) =>
+        database.AutomationRuns
+            .Where(row => row.FinishedAt != null && row.FinishedAt < finishedBefore)
+            .ExecuteDeleteAsync(cancellationToken);
+
     public Task CommitAsync(CancellationToken cancellationToken = default) => database.SaveChangesAsync(cancellationToken);
 
     private async Task<OutboxRow> RequireOutboxRowAsync(long id, CancellationToken cancellationToken) =>
@@ -266,5 +414,59 @@ internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeP
         new(row.PartnerUserId, row.ThreadId, row.TitleNick, row.TitleCheckedAt);
 
     private static PendingReply ToPendingReply(PendingReplyRow row) =>
-        new(row.Id, row.PeerId, row.TextHash, row.ThreadId, row.MessageId, row.CreatedAt);
+        new(row.Id, row.PeerId, row.TextHash, row.ThreadId, row.MessageId, row.CreatedAt, row.AutomationRule);
+
+    private static StoredAutomationRule ToRule(AutomationRuleRow row) => new(row.Name, row.Json, row.UpdatedBy, row.UpdatedAt);
+
+    private static void Copy(AutomationRun run, AutomationRunRow row)
+    {
+        row.SubjectUserId = run.SubjectUserId;
+        row.EventJson = run.EventJson;
+        row.Depth = run.Depth;
+        row.Manual = run.Manual;
+        row.DryRun = run.DryRun;
+        row.RequestedBy = run.RequestedBy;
+        row.State = (int)run.State;
+        row.ProgramCounter = run.ProgramCounter;
+        row.ResumeAt = run.ResumeAt;
+        row.AdmittedAt = run.AdmittedAt;
+        row.FinishedAt = run.FinishedAt;
+        row.Attempts = run.Attempts;
+        row.Outcome = run.Outcome;
+        row.LogJson = JsonSerializer.Serialize(run.Log, SerializerOptions);
+
+        // The approval card's location belongs to SetApprovalMessageAsync alone.
+    }
+
+    private static AutomationRun ToRun(AutomationRunRow row) => new()
+    {
+        Id = row.Id,
+        RuleName = row.RuleName,
+        RuleJson = row.RuleJson,
+        Trigger = row.Trigger,
+        GroupKey = row.GroupKey,
+        SubjectUserId = row.SubjectUserId,
+        EventJson = row.EventJson,
+        Depth = row.Depth,
+        Manual = row.Manual,
+        DryRun = row.DryRun,
+        RequestedBy = row.RequestedBy,
+        State = (AutomationRunState)row.State,
+        ProgramCounter = row.ProgramCounter,
+        CreatedAt = row.CreatedAt,
+        OccurredAt = row.OccurredAt,
+        ResumeAt = row.ResumeAt,
+        AdmittedAt = row.AdmittedAt,
+        FinishedAt = row.FinishedAt,
+        Attempts = row.Attempts,
+        Outcome = row.Outcome,
+        Log = JsonSerializer.Deserialize<List<string>>(row.LogJson, SerializerOptions) ?? [],
+        ApprovalChannelId = row.ApprovalChannelId,
+        ApprovalMessageId = row.ApprovalMessageId
+    };
+
+    private sealed class RunHandle(AutomationRunRow row) : IAutomationRunHandle
+    {
+        public long Id => row.Id;
+    }
 }

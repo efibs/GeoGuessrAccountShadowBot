@@ -19,7 +19,7 @@ public sealed partial class FriendshipsFetchedHandler(
     IEventContext context,
     ILogger<FriendshipsFetchedHandler> logger) : IShadowEventHandler<FriendshipsFetched>
 {
-    private const string StateKey = "friendships";
+    private const string StateKey = SnapshotKeys.Friendships;
 
     public async ValueTask HandleAsync(FriendshipsFetched shadowEvent, CancellationToken cancellationToken)
     {

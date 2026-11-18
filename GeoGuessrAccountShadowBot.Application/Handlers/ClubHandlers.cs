@@ -17,7 +17,7 @@ public sealed partial class ClubRosterFetchedHandler(
     IEventContext context,
     ILogger<ClubRosterFetchedHandler> logger) : IShadowEventHandler<ClubRosterFetched>
 {
-    private const string StateKey = "club-roster";
+    private const string StateKey = SnapshotKeys.ClubRoster;
 
     public async ValueTask HandleAsync(ClubRosterFetched shadowEvent, CancellationToken cancellationToken)
     {
@@ -81,6 +81,45 @@ public sealed class ClubMissionBoardHandler(IEventContext context) : IShadowEven
     {
         var title = shadowEvent.BoardCleared ? "Mission board cleared" : "Mission board progressed";
         context.Notify(new EventCard(EventKeys.ClubMissionBoard, CardStyle.Info, title, null, shadowEvent.ContributorUserId, null, null));
+        return ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Compares the club's pending applications with the stored ones. The first snapshot is recorded
+/// without announcing anything, like every other baseline.
+/// </summary>
+public sealed class ClubApplicationsFetchedHandler(IShadowStore store, IEventContext context)
+    : IShadowEventHandler<ClubApplicationsFetched>
+{
+    private const string StateKey = SnapshotKeys.ClubApplications;
+
+    public async ValueTask HandleAsync(ClubApplicationsFetched shadowEvent, CancellationToken cancellationToken)
+    {
+        var current = shadowEvent.Applications;
+        var previous = await store.ReadStateAsync<ClubApplicationSet>(StateKey, cancellationToken).ConfigureAwait(false);
+
+        if (previous is not null)
+        {
+            foreach (var applicant in current.NewSince(previous))
+            {
+                context.Raise(new ClubApplicationReceived(applicant));
+            }
+        }
+
+        await store.WriteStateAsync(StateKey, current, cancellationToken).ConfigureAwait(false);
+    }
+}
+
+/// <summary>
+/// Announces an application to the club.
+/// </summary>
+public sealed class ClubApplicationReceivedHandler(IEventContext context) : IShadowEventHandler<ClubApplicationReceived>
+{
+    public ValueTask HandleAsync(ClubApplicationReceived shadowEvent, CancellationToken cancellationToken)
+    {
+        context.Notify(new EventCard(
+            EventKeys.ClubApplicationReceived, CardStyle.Info, "New club application", null, shadowEvent.Applicant.UserId, null, null));
         return ValueTask.CompletedTask;
     }
 }

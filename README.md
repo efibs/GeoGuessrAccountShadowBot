@@ -14,6 +14,7 @@ A Discord bot that shadows one GeoGuessr account. It mirrors what happens on the
 - [Quick start](#quick-start)
 - [Discord setup](#discord-setup)
 - [Configuration](#configuration)
+- [Automations](#automations)
 - [How it behaves](#how-it-behaves)
 - [Data it stores](#data-it-stores)
 - [Development](#development)
@@ -39,14 +40,32 @@ Push-based wherever GeoGuessr allows it, so events arrive within moments. Every 
 | Friends | New requests with a profile card (picture, link, club, level, rating, standing), your requests being accepted, optional presence |
 | Invites | Game, challenge, team, party and club invites, club applications accepted |
 | Account | Badges, daily streak at risk or saved, moderation actions, rating refunds, reactions |
-| Club | Club chat, members joining or leaving, role changes, mission board |
+| Club | Club chat, members joining or leaving, role changes, mission board, new applications |
 | Ranked | Division and season changes, by slow configurable polling |
+| Automations | Rules that act by themselves: welcome new friends, befriend club applicants, answer DMs, remind the club on a schedule |
 
 From Discord, members of the roles you configure can:
 
 - **Reply to DMs** by typing in the partner's forum post. Start a message with `//` to keep it in Discord.
 - **Accept or decline friend requests** with buttons. Declining asks for confirmation, because GeoGuessr then stops that person from sending another request, even if you become friends later.
 - **Post in club chat** with `/shadow club-say`.
+- **Manage automations** with `/automation`, and approve the runs that ask for it.
+
+## Automations
+
+Automations react to anything the bot sees, on a schedule, or when started by hand. A rule has a trigger, an optional condition, and steps such as sending a DM, answering a friend request or club application, posting in Discord, waiting, branching, asking for approval, or starting other rules. Conditions and messages are [Scriban](https://github.com/scriban/scriban) templates over the event and the player's profile:
+
+```json
+{
+  "Name": "welcome-new-friends",
+  "On": "FriendRequestAccepted",
+  "OncePerPlayer": true,
+  "When": "player.level >= 10",
+  "Do": [{ "Wait": "1m" }, { "SendDm": "Hi {{ player.nick }}, thanks for adding me!" }]
+}
+```
+
+Rules are written in Discord with `/automation create`, or in the configuration. Dry runs, limits per player and per rule, a global rate limit and loop protection keep them from getting out of hand. [`Documentation/Automations.md`](Documentation/Automations.md) has everything, with examples.
 
 ## Quick start
 
@@ -77,7 +96,7 @@ Everything has a default in [`appsettings.json`](GeoGuessrAccountShadowBot.Host/
 | `Polling` | Catch-up and ranked intervals, paging limits |
 | `Discord` | Bot token, server, default and status channels |
 | `Forum` | The forum channel for conversations |
-| `Control` | Authorized roles, and one switch per action |
+| `Control` | Authorized roles, one switch per action, and automations |
 | `Events` | One entry per event: `Enabled`, optional `ChannelId` and `PingRoleIds` |
 | `Database` | Where the SQLite file lives |
 
@@ -100,7 +119,7 @@ Set `GeoGuessr:Socket:Enabled` to `false` for polling only. Mirroring then lags 
 
 ## Data it stores
 
-A SQLite file holds the ids of processed events for 90 days, friend and club snapshots, player names, and an audit log of actions taken from Discord. Chat text waits there only until it's delivered, and is then removed.
+A SQLite file holds the ids of processed events for 90 days, friend and club snapshots, player names, automation rules, and an audit log of actions taken from Discord or by automations. Chat text waits there only until it's delivered, and is then removed. Automation runs are kept for 30 days without their event data, and which rules ran for which player is kept for good, so that a rule can run once per player.
 
 ## Development
 

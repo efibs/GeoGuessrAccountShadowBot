@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Application.Connection;
 using GeoGuessrAccountShadowBot.Application.Control;
 using GeoGuessrAccountShadowBot.Application.Handlers;
@@ -21,6 +22,7 @@ public static class DependencyInjection
     public static IServiceCollection AddShadowApplication(this IServiceCollection services)
     {
         services.AddSingleton<IValidateOptions<ShadowOptions>, ShadowOptionsValidator>();
+        services.AddSingleton<IValidateOptions<ShadowOptions>, AutomationOptionsValidator>();
         services.AddSingleton(TimeProvider.System);
 
         var handlers = EventRouter.DiscoverHandlers(typeof(DependencyInjection).Assembly).ToArray();
@@ -56,11 +58,25 @@ public static class DependencyInjection
         services.AddSingleton<PendingReplyMonitor>();
         services.AddScoped<PlayerDirectory>();
 
+        services.AddSingleton<ConfiguredAutomationRules>();
+        services.AddSingleton<AutomationRuleRegistry>();
+        services.AddSingleton<AutomationSignal>();
+        services.AddSingleton<AutomationRateGate>();
+        services.AddSingleton<AutomationEngine>();
+        services.AddSingleton<AutomationService>();
+        services.AddSingleton<AutomationWorker>();
+        services.AddSingleton<AutomationScheduler>();
+        services.AddScoped<AutomationRunFactory>();
+        services.AddScoped<AutomationCapture>();
+
         services.AddHostedService<EventPipelineWorker>();
         services.AddHostedService<OutboxDispatcher>();
         services.AddHostedService<ReconciliationWorker>();
         services.AddHostedService<RankedPollingWorker>();
+        services.AddHostedService<ClubApplicationsPollingWorker>();
         services.AddHostedService(provider => provider.GetRequiredService<PendingReplyMonitor>());
+        services.AddHostedService(provider => provider.GetRequiredService<AutomationWorker>());
+        services.AddHostedService(provider => provider.GetRequiredService<AutomationScheduler>());
 
         return services;
     }

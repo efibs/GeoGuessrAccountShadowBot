@@ -13,6 +13,7 @@
     </ItemGroup>
 
     <ItemGroup Label="Hosting and configuration">
+        <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14"/>
         <PackageVersion Include="Microsoft.Extensions.Configuration.KeyPerFile" Version="10.0.14"/>
         <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.14"/>
         <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14"/>
@@ -25,6 +26,11 @@
         <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0"/>
         <PackageVersion Include="Polly.RateLimiting" Version="8.9.0"/>
         <PackageVersion Include="Refit" Version="16.4.0"/>
+    </ItemGroup>
+
+    <ItemGroup Label="Automations">
+        <PackageVersion Include="Cronos" Version="0.13.0"/>
+        <PackageVersion Include="Scriban" Version="7.5.3"/>
     </ItemGroup>
 
     <ItemGroup Label="Persistence">

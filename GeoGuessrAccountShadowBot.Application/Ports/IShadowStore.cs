@@ -13,8 +13,15 @@ public sealed record PartnerThread(string PartnerUserId, ulong ThreadId, string 
 /// <summary>The Discord card of one incoming friend request.</summary>
 public sealed record FriendRequestCardLocation(string UserId, ulong ChannelId, ulong MessageId);
 
-/// <summary>A reply that was sent and is waiting to come back on the socket.</summary>
-public sealed record PendingReply(long Id, string PeerId, string TextHash, ulong ThreadId, ulong MessageId, DateTimeOffset CreatedAt);
+/// <summary>
+/// A message that was sent and is waiting to come back on the socket. A reply typed in Discord has
+/// a thread and message to give feedback on. A message from an automation has its rule instead, and
+/// both ids are zero.
+/// </summary>
+public sealed record PendingReply(long Id, string PeerId, string TextHash, ulong ThreadId, ulong MessageId, DateTimeOffset CreatedAt, string? AutomationRule = null)
+{
+    public bool IsFromAutomation => AutomationRule is not null;
+}
 
 /// <summary>A cached GeoGuessr name.</summary>
 public sealed record PlayerName(string UserId, string Nick, DateTimeOffset FetchedAt);
@@ -65,7 +72,7 @@ public interface IShadowStore
 
     Task RemoveFriendRequestCardAsync(string userId, CancellationToken cancellationToken = default);
 
-    void AddPendingReply(string peerId, string textHash, ulong threadId, ulong messageId, DateTimeOffset createdAt);
+    void AddPendingReply(string peerId, string textHash, ulong threadId, ulong messageId, DateTimeOffset createdAt, string? automationRule = null);
 
     Task<PendingReply?> FindPendingReplyAsync(string peerId, string textHash, CancellationToken cancellationToken = default);
 
