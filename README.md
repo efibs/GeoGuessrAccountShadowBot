@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/efibs/GeoGuessrAccountShadowBot/actions/workflows/ci.yml/badge.svg)](https://github.com/efibs/GeoGuessrAccountShadowBot/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/efibs/GeoGuessrAccountShadowBot/actions/workflows/codeql.yml/badge.svg)](https://github.com/efibs/GeoGuessrAccountShadowBot/actions/workflows/codeql.yml)
-[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
+[![.NET 11](https://img.shields.io/badge/.NET-11-512BD4)](https://dotnet.microsoft.com/)
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%2B-blue.svg)](LICENSE)
 
 A Discord bot that shadows one GeoGuessr account. It mirrors what happens on the account into your Discord server, and lets the people you choose answer from Discord.
