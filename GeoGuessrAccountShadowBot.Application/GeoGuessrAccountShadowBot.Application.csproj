@@ -6,10 +6,7 @@
 
     <ItemGroup>
         <PackageReference Include="Cronos"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions"/>
-        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions"/>
         <PackageReference Include="Scriban"/>
-        <PackageReference Include="Microsoft.Extensions.Options"/>
     </ItemGroup>
 
 </Project>
