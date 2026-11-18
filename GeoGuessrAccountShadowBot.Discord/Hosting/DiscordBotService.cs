@@ -79,6 +79,12 @@ internal sealed partial class DiscordBotService(
             await interactions.AddModuleAsync<ShadowCommandsModule>(services).ConfigureAwait(false);
         }
 
+        if (control.Automation.Enabled)
+        {
+            await interactions.AddModuleAsync<AutomationModule>(services).ConfigureAwait(false);
+            await interactions.AddModuleAsync<AutomationInteractionsModule>(services).ConfigureAwait(false);
+        }
+
         await interactions.RegisterCommandsToGuildAsync(options.Value.Discord.GuildId).ConfigureAwait(false);
     }
 

@@ -104,7 +104,7 @@ public sealed class ShadowOptionsValidator : IValidateOptions<ShadowOptions>
         var clubEvents = new[]
         {
             EventKeys.ClubChat, EventKeys.ClubMemberJoined, EventKeys.ClubMemberLeft,
-            EventKeys.ClubRoleChanged, EventKeys.ClubMissionBoard
+            EventKeys.ClubRoleChanged, EventKeys.ClubMissionBoard, EventKeys.ClubApplicationReceived
         };
         foreach (var key in clubEvents.Where(key => options.IsEventEnabled(key) && !options.GeoGuessr.Club.Enabled))
         {
@@ -171,6 +171,11 @@ public sealed class ShadowOptionsValidator : IValidateOptions<ShadowOptions>
         if (options.ConnectedSafetyInterval < MinimumPollingInterval)
         {
             errors.Add($"Polling:ConnectedSafetyInterval must be at least {MinimumPollingInterval}.");
+        }
+
+        if (options.ClubApplicationsInterval < MinimumPollingInterval)
+        {
+            errors.Add($"Polling:ClubApplicationsInterval must be at least {MinimumPollingInterval}.");
         }
 
         if (options.RankedInterval < MinimumRankedInterval)

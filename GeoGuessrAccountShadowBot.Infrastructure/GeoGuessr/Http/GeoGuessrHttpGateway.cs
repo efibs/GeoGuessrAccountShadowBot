@@ -18,6 +18,7 @@ namespace GeoGuessrAccountShadowBot.Infrastructure.GeoGuessr.Http;
 internal sealed class GeoGuessrHttpGateway(IGeoGuessrRestApi api, AccountContext account) : IGeoGuessrApi
 {
     private const int MaxSummaryPages = 10;
+    private const int AppliedClubUserType = 3;
     private const string RejectedSession = "GeoGuessr rejected the session cookie.";
 
     public async Task<string> GetOwnUserIdAsync(CancellationToken cancellationToken = default)
@@ -173,6 +174,50 @@ internal sealed class GeoGuessrHttpGateway(IGeoGuessrRestApi api, AccountContext
         using (response)
         {
             return ToResult(response, "friend-request.decline_failed");
+        }
+    }
+
+    public async Task<ClubApplicationSet?> GetClubApplicationsAsync(string clubId, CancellationToken cancellationToken = default)
+    {
+        var response = await CallAsync(() => api.GetClubApplicationsAsync(clubId, cancellationToken)).ConfigureAwait(false);
+        using (response)
+        {
+            if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            var items = (await ReadAsync(response).ConfigureAwait(false))?.Items ?? [];
+            return ClubApplicationSet.From(items
+                .Where(item => item.ClubUserType == AppliedClubUserType)
+                .Select(item => new ClubApplicant(item.UserId, item.Nick ?? "")));
+        }
+    }
+
+    public async Task<Result> AcceptClubApplicationAsync(string clubId, string userId, CancellationToken cancellationToken = default)
+    {
+        var response = await CallAsync(() => api.AcceptClubApplicationAsync(clubId, new ClubApplicationAnswer(userId), cancellationToken)).ConfigureAwait(false);
+        using (response)
+        {
+            return ToResult(response, "club-application.accept_failed");
+        }
+    }
+
+    public async Task<Result> DeclineClubApplicationAsync(string clubId, string userId, CancellationToken cancellationToken = default)
+    {
+        var response = await CallAsync(() => api.DeclineClubApplicationAsync(clubId, new ClubApplicationAnswer(userId), cancellationToken)).ConfigureAwait(false);
+        using (response)
+        {
+            return ToResult(response, "club-application.decline_failed");
+        }
+    }
+
+    public async Task<Result> SendFriendRequestAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var response = await CallAsync(() => api.SendFriendRequestAsync(userId, cancellationToken)).ConfigureAwait(false);
+        using (response)
+        {
+            return ToResult(response, "friend-request.send_failed");
         }
     }
 

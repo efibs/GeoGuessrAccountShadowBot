@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Application.Notifications;
 using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Application.Ports;
@@ -11,13 +12,15 @@ using Microsoft.Extensions.Options;
 namespace GeoGuessrAccountShadowBot.Application.Pipeline;
 
 /// <summary>
-/// Runs one event through its handler. The dedupe key, state changes and queued deliveries all
-/// commit in one transaction, so an event is either fully applied or can safely be seen again.
+/// Runs one event through its handler. The dedupe key, state changes, queued deliveries and the
+/// automation runs it starts all commit in one transaction, so an event is either fully applied or
+/// can safely be seen again.
 /// </summary>
 public sealed partial class EventProcessor(
     IServiceScopeFactory scopes,
     EventRouter router,
     OutboxSignal outboxSignal,
+    AutomationSignal automationSignal,
     IOptions<ShadowOptions> options,
     ILogger<EventProcessor> logger)
 {
@@ -55,16 +58,25 @@ public sealed partial class EventProcessor(
                 return;
             }
 
+            var automations = scope.ServiceProvider.GetRequiredService<AutomationCapture>();
+            var startedAutomations = false;
+
             context.Begin(shadowEvent);
             while (context.TryTakeNext(out var current))
             {
                 if (IsEnabled(current))
                 {
                     await router.DispatchAsync(current, scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
+                    startedAutomations |= automations.Capture(current);
                 }
             }
 
             await store.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+            if (startedAutomations)
+            {
+                automationSignal.Wake();
+            }
         }
     }
 

@@ -58,6 +58,20 @@ internal interface IGeoGuessrRestApi
     [Get("/api/v4/season-pass/me")]
     Task<IApiResponse<SeasonPassDto>> GetSeasonPassAsync(CancellationToken cancellationToken);
 
+    /// <summary>Pending applications. Answers 403 without the permission to manage them.</summary>
+    [Get("/api/v4/clubs/{clubId}/applications")]
+    Task<IApiResponse<ClubApplicationsResponse>> GetClubApplicationsAsync(string clubId, CancellationToken cancellationToken);
+
+    [Post("/api/v4/clubs/{clubId}/accept-application")]
+    Task<IApiResponse> AcceptClubApplicationAsync(string clubId, [Body] ClubApplicationAnswer answer, CancellationToken cancellationToken);
+
+    [Post("/api/v4/clubs/{clubId}/decline-application")]
+    Task<IApiResponse> DeclineClubApplicationAsync(string clubId, [Body] ClubApplicationAnswer answer, CancellationToken cancellationToken);
+
+    /// <summary>Sends a request. PUT on the same path would accept an incoming one instead.</summary>
+    [Post("/api/v3/social/friends/{userId}?context=")]
+    Task<IApiResponse> SendFriendRequestAsync(string userId, CancellationToken cancellationToken);
+
     /// <summary>Accepts an incoming request. POST on the same path would send a new one instead.</summary>
     [Put("/api/v3/social/friends/{userId}?context=")]
     Task<IApiResponse> AcceptFriendRequestAsync(string userId, CancellationToken cancellationToken);

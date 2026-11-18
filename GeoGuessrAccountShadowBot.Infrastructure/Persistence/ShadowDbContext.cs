@@ -69,6 +69,9 @@ internal sealed class PendingReplyRow
     public required ulong MessageId { get; set; }
 
     public required DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>The rule that sent the message, if an automation did.</summary>
+    public string? AutomationRule { get; set; }
 }
 
 internal sealed class PlayerNameRow
@@ -95,6 +98,76 @@ internal sealed class ControlAuditRow
     public required string Outcome { get; set; }
 }
 
+internal sealed class AutomationRuleRow
+{
+    public required string Name { get; set; }
+
+    public required string Json { get; set; }
+
+    public required ulong UpdatedBy { get; set; }
+
+    public required DateTimeOffset UpdatedAt { get; set; }
+}
+
+internal sealed class AutomationRunRow
+{
+    public long Id { get; set; }
+
+    public required string RuleName { get; set; }
+
+    public required string RuleJson { get; set; }
+
+    public required string Trigger { get; set; }
+
+    public required string GroupKey { get; set; }
+
+    public string? SubjectUserId { get; set; }
+
+    public required string EventJson { get; set; }
+
+    public int Depth { get; set; }
+
+    public bool Manual { get; set; }
+
+    public bool DryRun { get; set; }
+
+    public ulong? RequestedBy { get; set; }
+
+    public int State { get; set; }
+
+    public int ProgramCounter { get; set; }
+
+    public required DateTimeOffset CreatedAt { get; set; }
+
+    public required DateTimeOffset OccurredAt { get; set; }
+
+    public required DateTimeOffset ResumeAt { get; set; }
+
+    public DateTimeOffset? AdmittedAt { get; set; }
+
+    public DateTimeOffset? FinishedAt { get; set; }
+
+    public int Attempts { get; set; }
+
+    public string? Outcome { get; set; }
+
+    public required string LogJson { get; set; }
+
+    public ulong? ApprovalChannelId { get; set; }
+
+    public ulong? ApprovalMessageId { get; set; }
+}
+
+/// <summary>When a rule last ran for a player. Kept for good, so once-per-player holds.</summary>
+internal sealed class AutomationPlayerRunRow
+{
+    public required string RuleName { get; set; }
+
+    public required string SubjectUserId { get; set; }
+
+    public required DateTimeOffset LastRunAt { get; set; }
+}
+
 /// <summary>
 /// The bot's SQLite database.
 /// </summary>
@@ -115,6 +188,12 @@ internal sealed class ShadowDbContext(DbContextOptions<ShadowDbContext> options)
     public DbSet<PlayerNameRow> PlayerNames => Set<PlayerNameRow>();
 
     public DbSet<ControlAuditRow> ControlAudits => Set<ControlAuditRow>();
+
+    public DbSet<AutomationRuleRow> AutomationRules => Set<AutomationRuleRow>();
+
+    public DbSet<AutomationRunRow> AutomationRuns => Set<AutomationRunRow>();
+
+    public DbSet<AutomationPlayerRunRow> AutomationPlayerRuns => Set<AutomationPlayerRunRow>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
         // SQLite has no date type, and this keeps stored values comparable in queries.
@@ -152,6 +231,18 @@ internal sealed class ShadowDbContext(DbContextOptions<ShadowDbContext> options)
 
         modelBuilder.Entity<PlayerNameRow>().HasKey(row => row.UserId);
         modelBuilder.Entity<ControlAuditRow>().HasKey(row => row.Id);
+
+        modelBuilder.Entity<AutomationRuleRow>().HasKey(row => row.Name);
+
+        modelBuilder.Entity<AutomationRunRow>(entity =>
+        {
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.FinishedAt, row.ResumeAt });
+            entity.HasIndex(row => new { row.RuleName, row.AdmittedAt });
+            entity.HasIndex(row => row.GroupKey);
+        });
+
+        modelBuilder.Entity<AutomationPlayerRunRow>().HasKey(row => new { row.RuleName, row.SubjectUserId });
     }
 }
 

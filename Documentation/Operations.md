@@ -32,6 +32,12 @@ Update the secret and restart. The token must belong to the same account, becaus
 | ❌ | Not sent, because the bot wasn't connected |
 | 🚫 | Refused, with the reason in a reply |
 
+## Automations
+
+To stop one rule, run `/automation disable <name>`, which also cancels its unfinished runs. To stop them all, set `Control:Automation:Enabled` to `false` and restart. Waiting runs then stay in the database, and continue when automations are switched back on, unless they've grown older than their rule allows.
+
+A run that fails is reported in the report channel with every step it took. `/automation runs` lists recent runs, and the audit log records each action as `auto:<rule>:<action>`. See [`Automations.md`](Automations.md).
+
 ## Backups
 
 The volume holds one SQLite file. Losing it isn't serious: the next start records the current state silently, and forum posts get recreated when a partner next writes.

@@ -39,3 +39,17 @@ public sealed record ClubMissionBoardProgressed(string? ContributorUserId, bool 
 {
     public override string SwitchKey => EventKeys.ClubMissionBoard;
 }
+
+/// <summary>
+/// The club's pending applications, which their handler compares with the stored ones. Only a
+/// member allowed to manage applications can read them.
+/// </summary>
+public sealed record ClubApplicationsFetched(ClubApplicationSet Applications) : ShadowEvent;
+
+/// <summary>
+/// Someone applied to join the club.
+/// </summary>
+public sealed record ClubApplicationReceived(ClubApplicant Applicant) : ShadowEvent
+{
+    public override string SwitchKey => EventKeys.ClubApplicationReceived;
+}

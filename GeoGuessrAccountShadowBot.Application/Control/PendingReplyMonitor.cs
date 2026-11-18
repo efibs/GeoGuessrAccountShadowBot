@@ -37,6 +37,14 @@ public sealed partial class PendingReplyMonitor(
 
             foreach (var pending in expired)
             {
+                // Nobody waits for feedback on an automation's message. If it did arrive, catch-up
+                // mirrors it like any other message from the account.
+                if (pending.IsFromAutomation)
+                {
+                    await store.RemovePendingReplyAsync(pending.Id, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 var kind = await WasDeliveredAsync(pending, cancellationToken).ConfigureAwait(false)
                     ? ReplyFeedbackKind.Delivered
                     : ReplyFeedbackKind.Unconfirmed;
@@ -48,7 +56,7 @@ public sealed partial class PendingReplyMonitor(
 
             await store.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-            if (expired.Count > 0)
+            if (expired.Any(pending => !pending.IsFromAutomation))
             {
                 outboxSignal.Wake();
             }

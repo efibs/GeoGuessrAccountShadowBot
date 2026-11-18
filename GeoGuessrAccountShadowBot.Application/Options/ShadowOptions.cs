@@ -97,6 +97,9 @@ public sealed class PollingOptions
     public TimeSpan MaxCatchUpAge { get; set; } = TimeSpan.FromDays(7);
 
     public TimeSpan RankedInterval { get; set; } = TimeSpan.FromMinutes(30);
+
+    /// <summary>How often pending club applications are read. GeoGuessr doesn't push them.</summary>
+    public TimeSpan ClubApplicationsInterval { get; set; } = TimeSpan.FromMinutes(2);
 }
 
 public sealed class DiscordOptions
@@ -136,6 +139,44 @@ public sealed class ControlOptions
     public ToggleOptions FriendRequestButtons { get; set; } = new();
 
     public ClubChatOptions ClubChat { get; set; } = new();
+
+    public AutomationOptions Automation { get; set; } = new();
+}
+
+/// <summary>
+/// Rules that act as the account by themselves. The rules are read from
+/// <c>Control:Automation:Rules</c> by <c>AutomationConfigRules</c>, because their actions don't
+/// bind to fixed types.
+/// </summary>
+public sealed class AutomationOptions
+{
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Roles that may create, change and run rules from Discord. Members of
+    /// <see cref="ControlOptions.AuthorizedRoleIds"/> may only look at rules and approve runs.
+    /// </summary>
+    public List<ulong> ManagerRoleIds { get; set; } = [];
+
+    /// <summary>Where reports and approvals go unless a rule says otherwise. Defaults to the status channel.</summary>
+    public ulong? ReportChannelId { get; set; }
+
+    /// <summary>Caps actions as the account across all rules. Further actions wait for a slot.</summary>
+    public int MaxActionsPerMinute { get; set; } = 10;
+
+    public int MaxActionsPerHour { get; set; } = 120;
+
+    /// <summary>Caps automated DMs to one player, so two bots can't talk to each other forever.</summary>
+    public int MaxDmsPerPlayerPerHour { get; set; } = 5;
+
+    /// <summary>How many times a rule may raise an event that starts another rule, in one chain.</summary>
+    public int MaxChainDepth { get; set; } = 3;
+
+    /// <summary>The most players one Raise with ForEach may reach.</summary>
+    public int MaxFanOut { get; set; } = 200;
+
+    /// <summary>How long an action that needs the socket waits for it before the run fails.</summary>
+    public TimeSpan OfflineGrace { get; set; } = TimeSpan.FromMinutes(10);
 }
 
 public sealed class DmReplyOptions

@@ -16,6 +16,131 @@ namespace GeoGuessrAccountShadowBot.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
+            modelBuilder.Entity("GeoGuessrAccountShadowBot.Infrastructure.Persistence.AutomationPlayerRunRow", b =>
+                {
+                    b.Property<string>("RuleName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LastRunAt")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("RuleName", "SubjectUserId");
+
+                    b.ToTable("AutomationPlayerRuns");
+                });
+
+            modelBuilder.Entity("GeoGuessrAccountShadowBot.Infrastructure.Persistence.AutomationRuleRow", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("AutomationRules");
+                });
+
+            modelBuilder.Entity("GeoGuessrAccountShadowBot.Infrastructure.Persistence.AutomationRunRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("AdmittedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong?>("ApprovalChannelId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong?>("ApprovalMessageId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Depth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("DryRun")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EventJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("FinishedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("GroupKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LogJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Manual")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("OccurredAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Outcome")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProgramCounter")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong?>("RequestedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ResumeAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RuleJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RuleName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SubjectUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupKey");
+
+                    b.HasIndex("FinishedAt", "ResumeAt");
+
+                    b.HasIndex("RuleName", "AdmittedAt");
+
+                    b.ToTable("AutomationRuns");
+                });
+
             modelBuilder.Entity("GeoGuessrAccountShadowBot.Infrastructure.Persistence.ControlAuditRow", b =>
                 {
                     b.Property<long>("Id")
@@ -117,6 +242,9 @@ namespace GeoGuessrAccountShadowBot.Infrastructure.Persistence.Migrations
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("AutomationRule")
+                        .HasColumnType("TEXT");
 
                     b.Property<long>("CreatedAt")
                         .HasColumnType("INTEGER");

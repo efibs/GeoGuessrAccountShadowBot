@@ -49,6 +49,21 @@ public interface IGeoGuessrApi
 
     Task<RankedSnapshot> GetRankedAsync(string userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The club's pending applications, or null if the account may not manage applications, since
+    /// GeoGuessr only shows them to members with that permission.
+    /// </summary>
+    Task<ClubApplicationSet?> GetClubApplicationsAsync(string clubId, CancellationToken cancellationToken = default);
+
+    /// <summary>Lets an applicant into the club. Never retried, since it changes the club.</summary>
+    Task<Result> AcceptClubApplicationAsync(string clubId, string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Turns an applicant away. Never retried, since it changes the club.</summary>
+    Task<Result> DeclineClubApplicationAsync(string clubId, string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Sends a friend request from the account. Never retried, since it changes the account.</summary>
+    Task<Result> SendFriendRequestAsync(string userId, CancellationToken cancellationToken = default);
+
     /// <summary>Accepts an incoming friend request. Never retried, since it changes the account.</summary>
     Task<Result> AcceptFriendRequestAsync(string userId, CancellationToken cancellationToken = default);
 

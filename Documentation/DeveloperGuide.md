@@ -35,6 +35,7 @@ Log-like data has ids, and state-like data is compared. Frames about state are o
 | Data | Source | Dedupe |
 |---|---|---|
 | DMs, club chat | Frames and history | Message id |
+| Club applications | Polled diff | Snapshot |
 | Friendships | `/friendships` diff | Snapshot |
 | Invites, account events | Notification list | Notification id |
 | Club roster | `/members` diff | Snapshot |
@@ -59,6 +60,24 @@ The friendship diff is the only producer of friend events. Notification types 1 
 
 **A new outbox message** needs a `[JsonDerivedType]` line on `OutboxMessage`, and a case in `DiscordPublisher`.
 
+## Automations
+
+```
+event ─> EventProcessor ─> handler
+                        └─> AutomationCapture ─> run row ──> AutomationWorker ─> AutomationEngine ─> ControlCommandRunner
+Schedule, /automation run, Raise ──────────────────┘                                              └─> outbox row
+```
+
+- **Capture is cheap.** `AutomationCapture` only matches the trigger and writes a run, in the event's transaction. Conditions wait for the worker, because they may need GeoGuessr.
+- **A rule is a flat program.** `AutomationRuleParser` compiles `If` into jumps, so a run resumes from one number. A run carries its rule's JSON, so edits don't affect it.
+- **Saved after every step.** A `Wait` or an approval is a saved time, not a task. A run found in `Acting` was interrupted during an action, and fails rather than repeating it.
+- **Scripts are sandboxed.** `AutomationScope` gives Scriban plain objects only, with limits on loops, time and output.
+- **Untrusted values are marked.** `AutomationMarkup` marks every value a template inserts into Discord text, and `AutomationRenderer` escapes the marked parts only.
+
+**A new trigger** needs a case in `AutomationTriggers.Describe`, and its fields in `EventFields`. Event keys are triggers already.
+
+**A new step** needs a record in `AutomationRule.cs`, a case in the parser, and a case in the engine. A step that acts as the account goes through `PlanAsync`, which gives it the rate limit, the socket wait and the at-most-once marking.
+
 ## Connection handling
 
 `ConnectionPolicy` makes every decision, and has no side effects. `ConnectionSupervisor` carries the decisions out. To change how a close code is treated, change the policy and its table of tests.
@@ -78,7 +97,8 @@ The friendship diff is the only producer of friend events. Notification types 1 
 |---|---|
 | Pure logic | `Domain`, `Application/ConnectionPolicyTests`, validators, classifier |
 | Real frames | `Infrastructure/FrameDecoderTests`, using scrubbed fixtures from the probe |
-| Pipeline on real SQLite and migrations | `Application/EventPipelineTests`, `ReconciliationTests`, `ControlTests` |
+| Pipeline on real SQLite and migrations | `Application/EventPipelineTests`, `ReconciliationTests`, `ControlTests`, `AutomationEngineTests` |
+| Rule parsing, scripts, escaping | `Application/AutomationRuleTests` |
 | Real sockets and HTTP on a local server | `Infrastructure/SocketSessionTests`, `HttpRoundTripTests` |
 | Scripted connection with a fake clock | `Infrastructure/ConnectionSupervisorTests` |
 | Real object graph | `Host/CompositionTests` |
