@@ -4,6 +4,7 @@ using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Application.Notifications;
 using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Application.Ports;
+using GeoGuessrAccountShadowBot.Application.Sources;
 using GeoGuessrAccountShadowBot.Domain.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -12,15 +13,16 @@ using Microsoft.Extensions.Options;
 namespace GeoGuessrAccountShadowBot.Application.Pipeline;
 
 /// <summary>
-/// Runs one event through its handler. The dedupe key, state changes, queued deliveries and the
-/// automation runs it starts all commit in one transaction, so an event is either fully applied or
-/// can safely be seen again.
+/// Runs one event through its handler. The dedupe key, state changes, queued deliveries, the
+/// automation runs it starts and its entry in the external feed all commit in one transaction, so
+/// an event is either fully applied or can safely be seen again.
 /// </summary>
 public sealed partial class EventProcessor(
     IServiceScopeFactory scopes,
     EventRouter router,
     OutboxSignal outboxSignal,
     AutomationSignal automationSignal,
+    ExternalFeedSignal feedSignal,
     IOptions<ShadowOptions> options,
     ILogger<EventProcessor> logger)
 {
@@ -59,7 +61,9 @@ public sealed partial class EventProcessor(
             }
 
             var automations = scope.ServiceProvider.GetRequiredService<AutomationCapture>();
+            var feed = scope.ServiceProvider.GetRequiredService<ExternalEventCapture>();
             var startedAutomations = false;
+            var recorded = false;
 
             context.Begin(shadowEvent);
             while (context.TryTakeNext(out var current))
@@ -68,6 +72,7 @@ public sealed partial class EventProcessor(
                 {
                     await router.DispatchAsync(current, scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
                     startedAutomations |= automations.Capture(current);
+                    recorded |= feed.Capture(current);
                 }
             }
 
@@ -76,6 +81,11 @@ public sealed partial class EventProcessor(
             if (startedAutomations)
             {
                 automationSignal.Wake();
+            }
+
+            if (recorded)
+            {
+                feedSignal.Wake();
             }
         }
     }

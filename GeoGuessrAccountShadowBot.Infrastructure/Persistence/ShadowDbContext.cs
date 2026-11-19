@@ -168,6 +168,22 @@ internal sealed class AutomationPlayerRunRow
     public required DateTimeOffset LastRunAt { get; set; }
 }
 
+/// <summary>An event served to other instances. The id is the feed position, and never reused.</summary>
+internal sealed class ExternalEventRow
+{
+    public long Id { get; set; }
+
+    public required string Trigger { get; set; }
+
+    public string? SubjectUserId { get; set; }
+
+    public required DateTimeOffset OccurredAt { get; set; }
+
+    public required DateTimeOffset RecordedAt { get; set; }
+
+    public required string DataJson { get; set; }
+}
+
 /// <summary>
 /// The bot's SQLite database.
 /// </summary>
@@ -194,6 +210,8 @@ internal sealed class ShadowDbContext(DbContextOptions<ShadowDbContext> options)
     public DbSet<AutomationRunRow> AutomationRuns => Set<AutomationRunRow>();
 
     public DbSet<AutomationPlayerRunRow> AutomationPlayerRuns => Set<AutomationPlayerRunRow>();
+
+    public DbSet<ExternalEventRow> ExternalEvents => Set<ExternalEventRow>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
         // SQLite has no date type, and this keeps stored values comparable in queries.
@@ -243,6 +261,12 @@ internal sealed class ShadowDbContext(DbContextOptions<ShadowDbContext> options)
         });
 
         modelBuilder.Entity<AutomationPlayerRunRow>().HasKey(row => new { row.RuleName, row.SubjectUserId });
+
+        modelBuilder.Entity<ExternalEventRow>(entity =>
+        {
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => row.RecordedAt);
+        });
     }
 }
 

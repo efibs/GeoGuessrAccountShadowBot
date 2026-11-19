@@ -12,7 +12,8 @@ namespace GeoGuessrAccountShadowBot.Infrastructure.Persistence;
 /// <summary>
 /// Keeps everything in one change tracker, so <see cref="CommitAsync"/> writes one transaction.
 /// </summary>
-internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeProvider) : IShadowStore, IAutomationStore
+internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeProvider, OutboxFilter outbox)
+    : IShadowStore, IAutomationStore, IExternalEventStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -71,11 +72,19 @@ internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeP
         }
     }
 
-    public void Enqueue(OutboxMessage message) => database.Outbox.Add(new OutboxRow
+    public void Enqueue(OutboxMessage message)
     {
-        CreatedAt = timeProvider.GetUtcNow(),
-        Payload = JsonSerializer.Serialize(message, SerializerOptions)
-    });
+        if (!outbox.Accepts(message))
+        {
+            return;
+        }
+
+        database.Outbox.Add(new OutboxRow
+        {
+            CreatedAt = timeProvider.GetUtcNow(),
+            Payload = JsonSerializer.Serialize(message, SerializerOptions)
+        });
+    }
 
     public async Task<IReadOnlyList<OutboxEntry>> ReadOutboxAsync(int limit, CancellationToken cancellationToken = default)
     {
@@ -411,6 +420,51 @@ internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeP
         database.AutomationRuns
             .Where(row => row.FinishedAt != null && row.FinishedAt < finishedBefore)
             .ExecuteDeleteAsync(cancellationToken);
+
+    public void AddExternalEvent(string trigger, string? subjectUserId, DateTimeOffset occurredAt, DateTimeOffset recordedAt, string dataJson) =>
+        database.ExternalEvents.Add(new ExternalEventRow
+        {
+            Trigger = trigger,
+            SubjectUserId = subjectUserId,
+            OccurredAt = occurredAt,
+            RecordedAt = recordedAt,
+            DataJson = dataJson
+        });
+
+    public async Task<IReadOnlyList<ExternalEvent>> ReadExternalEventsAsync(
+        long after, IReadOnlyCollection<string> triggers, int limit, CancellationToken cancellationToken = default)
+    {
+        var rows = await database.ExternalEvents
+            .AsNoTracking()
+            .Where(row => row.Id > after && triggers.Contains(row.Trigger))
+            .OrderBy(row => row.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows.Select(row => new ExternalEvent(row.Id, row.Trigger, row.SubjectUserId, row.OccurredAt, row.RecordedAt, row.DataJson)).ToArray();
+    }
+
+    public async Task<ExternalEventBounds> ReadExternalEventBoundsAsync(CancellationToken cancellationToken = default)
+    {
+        var bounds = await database.ExternalEvents
+            .AsNoTracking()
+            .GroupBy(_ => 1)
+            .Select(group => new { Oldest = group.Min(row => row.Id), Newest = group.Max(row => row.Id) })
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return bounds is null ? new ExternalEventBounds(0, 0) : new ExternalEventBounds(bounds.Oldest, bounds.Newest);
+    }
+
+    public async Task PruneExternalEventsAsync(DateTimeOffset recordedBefore, CancellationToken cancellationToken = default)
+    {
+        var newest = await database.ExternalEvents.MaxAsync(row => (long?)row.Id, cancellationToken).ConfigureAwait(false) ?? 0;
+        await database.ExternalEvents
+            .Where(row => row.RecordedAt < recordedBefore && row.Id < newest)
+            .ExecuteDeleteAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     public Task CommitAsync(CancellationToken cancellationToken = default) => database.SaveChangesAsync(cancellationToken);
 

@@ -17,6 +17,7 @@ public sealed class ArchitectureTests
     private static readonly Assembly Application = typeof(EventRouter).Assembly;
     private static readonly Assembly Infrastructure = typeof(GeoGuessrAccountShadowBot.Infrastructure.DependencyInjection).Assembly;
     private static readonly Assembly Discord = typeof(GeoGuessrAccountShadowBot.Discord.DependencyInjection).Assembly;
+    private static readonly Assembly Api = typeof(GeoGuessrAccountShadowBot.Api.DependencyInjection).Assembly;
 
     private static void ShouldNotDependOn(Assembly assembly, params string[] forbidden)
     {
@@ -34,7 +35,7 @@ public sealed class ArchitectureTests
     [Fact]
     public void Application_DoesNotKnowTheOutsideWorld()
     {
-        ShouldNotDependOn(Application, "GeoGuessrAccountShadowBot.Infrastructure", "GeoGuessrAccountShadowBot.Discord", "Discord", "Refit", "Microsoft.EntityFrameworkCore", "System.Net.WebSockets");
+        ShouldNotDependOn(Application, "GeoGuessrAccountShadowBot.Infrastructure", "GeoGuessrAccountShadowBot.Discord", "GeoGuessrAccountShadowBot.Api", "Discord", "Refit", "Microsoft.EntityFrameworkCore", "Microsoft.AspNetCore", "System.Net.WebSockets", "System.Net.Http");
     }
 
     [Fact]
@@ -42,6 +43,14 @@ public sealed class ArchitectureTests
     {
         ShouldNotDependOn(Infrastructure, "GeoGuessrAccountShadowBot.Discord", "Discord");
         ShouldNotDependOn(Discord, "GeoGuessrAccountShadowBot.Infrastructure", "Refit", "Microsoft.EntityFrameworkCore");
+    }
+
+    [Fact]
+    public void Api_OnlyServesTheApplication()
+    {
+        ShouldNotDependOn(Api, "GeoGuessrAccountShadowBot.Infrastructure", "GeoGuessrAccountShadowBot.Discord", "Discord", "Refit", "Microsoft.EntityFrameworkCore");
+        ShouldNotDependOn(Infrastructure, "GeoGuessrAccountShadowBot.Api", "Microsoft.AspNetCore");
+        ShouldNotDependOn(Discord, "GeoGuessrAccountShadowBot.Api", "Microsoft.AspNetCore");
     }
 
     [Fact]
@@ -60,7 +69,7 @@ public sealed class ArchitectureTests
     [Fact]
     public void ConcreteClasses_AreSealed()
     {
-        foreach (var assembly in new[] { Domain, Application, Infrastructure, Discord })
+        foreach (var assembly in new[] { Domain, Application, Infrastructure, Discord, Api })
         {
             var result = Types.InAssembly(assembly)
                 .That().AreClasses().And().AreNotAbstract().And().DoNotHaveNameMatching("<|Migration|Snapshot|Program")

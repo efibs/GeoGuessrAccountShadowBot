@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Cronos;
 using GeoGuessrAccountShadowBot.Application.Notifications;
+using GeoGuessrAccountShadowBot.Application.Sources;
 using GeoGuessrAccountShadowBot.Domain.Events;
 
 namespace GeoGuessrAccountShadowBot.Application.Automation;
@@ -205,7 +206,7 @@ public static partial class AutomationRuleParser
 
             if (on is null)
             {
-                Error("On", "is required. Use an event key, Schedule, Manual or Custom:<name>.");
+                Error("On", "is required. Use an event key, Schedule, Manual, Custom:<name> or Source:<source>:<trigger>.");
                 return null;
             }
 
@@ -238,6 +239,11 @@ public static partial class AutomationRuleParser
                 return new AutomationTriggerSpec(AutomationTriggerKind.Manual, AutomationTriggerSpec.ManualName, null, zone);
             }
 
+            if (on.StartsWith(ExternalSourceNames.TriggerPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return ReadSourceTrigger(on, zone);
+            }
+
             if (on.StartsWith(AutomationTriggerSpec.CustomPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 var custom = on[AutomationTriggerSpec.CustomPrefix.Length..];
@@ -258,6 +264,28 @@ public static partial class AutomationRuleParser
             }
 
             return new AutomationTriggerSpec(AutomationTriggerKind.Event, key, null, zone);
+        }
+
+        /// <summary>Reads <c>Source:dragon:ClubApplicationReceived</c>, or <c>Source:dragon:Custom:vip</c>.</summary>
+        private AutomationTriggerSpec? ReadSourceTrigger(string on, TimeZoneInfo zone)
+        {
+            var rest = on[ExternalSourceNames.TriggerPrefix.Length..];
+            var colon = rest.IndexOf(':', StringComparison.Ordinal);
+            var source = colon < 0 ? rest : rest[..colon];
+            if (!ExternalSourceNames.IsValid(source) || colon < 0)
+            {
+                Error("On", "needs a source name and its trigger, such as Source:dragon:ClubApplicationReceived.");
+                return null;
+            }
+
+            var remote = rest[(colon + 1)..];
+            if (ExternalEventFeed.Canonical(remote) is not { } trigger)
+            {
+                Error("On", $"'{remote}' isn't a trigger a source can send. Use an event key or Custom:<name> after Source:{source}:.");
+                return null;
+            }
+
+            return new AutomationTriggerSpec(AutomationTriggerKind.Source, trigger, null, zone, source);
         }
 
         private AutomationLimits ReadLimits(Dictionary<string, JsonNode?> properties)
@@ -575,15 +603,29 @@ public static partial class AutomationRuleParser
             }
 
             AutomationAudience? audience = null;
+            string? audienceSource = null;
             if (String(properties, "ForEach", $"{at}.ForEach") is { } audienceText)
             {
+                // A source's group is written like its events, as Source:dragon:ClubApplications.
+                if (audienceText.StartsWith(ExternalSourceNames.TriggerPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    var rest = audienceText[ExternalSourceNames.TriggerPrefix.Length..];
+                    var colon = rest.IndexOf(':', StringComparison.Ordinal);
+                    audienceSource = colon < 0 ? rest : rest[..colon];
+                    audienceText = colon < 0 ? "" : rest[(colon + 1)..];
+                    if (!ExternalSourceNames.IsValid(audienceSource))
+                    {
+                        Error($"{at}.ForEach", "needs a source name and a group, such as Source:dragon:ClubApplications.");
+                    }
+                }
+
                 if (Enum.TryParse<AutomationAudience>(audienceText, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed))
                 {
                     audience = parsed;
                 }
                 else
                 {
-                    Error($"{at}.ForEach", $"must be one of: {string.Join(", ", Enum.GetNames<AutomationAudience>())}.");
+                    Error($"{at}.ForEach", $"must be one of: {string.Join(", ", Enum.GetNames<AutomationAudience>())}, or one of them after Source:<source>:.");
                 }
             }
 
@@ -593,7 +635,7 @@ public static partial class AutomationRuleParser
                 Error(at, "can't have both ForEach and Player.");
             }
 
-            return name is null ? null : new RaiseStep(path, name, data, audience, player);
+            return name is null ? null : new RaiseStep(path, name, data, audience, player, audience is null ? null : audienceSource);
         }
 
         /// <summary>A target is the run's player unless a template names another one.</summary>

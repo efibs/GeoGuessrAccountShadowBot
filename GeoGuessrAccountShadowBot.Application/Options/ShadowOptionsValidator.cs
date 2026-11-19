@@ -24,14 +24,21 @@ public sealed class ShadowOptionsValidator : IValidateOptions<ShadowOptions>
         ValidateControl(options, errors);
         ValidatePolling(options.Polling, errors);
 
-        if (string.IsNullOrWhiteSpace(options.Discord.Token))
+        if (options.IsHeadless)
         {
-            errors.Add("Discord:Token is required.");
+            ValidateHeadless(options, errors);
         }
-
-        if (options.Discord.GuildId == 0)
+        else
         {
-            errors.Add("Discord:GuildId is required.");
+            if (string.IsNullOrWhiteSpace(options.Discord.Token))
+            {
+                errors.Add("Discord:Token is required, unless Discord:Enabled is false.");
+            }
+
+            if (options.Discord.GuildId == 0)
+            {
+                errors.Add("Discord:GuildId is required, unless Discord:Enabled is false.");
+            }
         }
 
         if (string.IsNullOrWhiteSpace(options.Database.Path))
@@ -88,7 +95,8 @@ public sealed class ShadowOptionsValidator : IValidateOptions<ShadowOptions>
             errors.Add($"Events:{EventKeys.DmMessage}:Card can't be switched off, because messages have no card. Use Enabled.");
         }
 
-        foreach (var (key, settings) in options.Events.Where(entry => entry.Value.Enabled && entry.Value.Card))
+        // Without Discord there are no cards or posts, so nothing needs a channel.
+        foreach (var (key, settings) in options.Events.Where(entry => !options.IsHeadless && entry.Value.Enabled && entry.Value.Card))
         {
             if (key == EventKeys.DmMessage)
             {
@@ -101,7 +109,7 @@ public sealed class ShadowOptionsValidator : IValidateOptions<ShadowOptions>
             }
         }
 
-        if (options.IsEventEnabled(EventKeys.DmMessage) && options.Forum.ChannelId is null)
+        if (!options.IsHeadless && options.IsEventEnabled(EventKeys.DmMessage) && options.Forum.ChannelId is null)
         {
             errors.Add($"Events:{EventKeys.DmMessage} needs Forum:ChannelId, because each chat partner gets a forum post.");
         }
@@ -163,6 +171,31 @@ public sealed class ShadowOptionsValidator : IValidateOptions<ShadowOptions>
         if (control.ClubChat.Enabled && (!options.GeoGuessr.Club.Enabled || !options.GeoGuessr.Socket.Enabled))
         {
             errors.Add("Control:ClubChat needs GeoGuessr:Club:Enabled and GeoGuessr:Socket:Enabled.");
+        }
+    }
+
+    /// <summary>
+    /// Refuses what only works through Discord, so a headless instance can't silently do less than
+    /// its configuration says.
+    /// </summary>
+    private static void ValidateHeadless(ShadowOptions options, List<string> errors)
+    {
+        var control = options.Control;
+        var features = new (bool Enabled, string Name)[]
+        {
+            (control.DmReply.Enabled, "Control:DmReply"),
+            (control.FriendRequestButtons.Enabled, "Control:FriendRequestButtons"),
+            (control.ClubChat.Enabled, "Control:ClubChat")
+        };
+
+        foreach (var (_, feature) in features.Where(feature => feature.Enabled))
+        {
+            errors.Add($"{feature} needs Discord, and Discord:Enabled is false.");
+        }
+
+        if (options.Forum.ChannelId is not null)
+        {
+            errors.Add("Forum:ChannelId needs Discord, and Discord:Enabled is false.");
         }
     }
 

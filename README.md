@@ -43,6 +43,7 @@ Push-based wherever GeoGuessr allows it, so events arrive within moments. Every 
 | Club | Club chat, members joining or leaving, role changes, mission board, new applications |
 | Ranked | Division and season changes, by slow configurable polling |
 | Automations | Rules that act by themselves: welcome new friends, befriend club applicants, answer DMs, remind the club on a schedule |
+| Linked instances | A second instance, headless and without Discord, shadows another account, and rules read its events and data |
 
 From Discord, members of the roles you configure can:
 
@@ -66,6 +67,8 @@ Automations react to anything the bot sees, on a schedule, or when started by ha
 ```
 
 Rules are written in Discord with `/automation create`, or in the configuration. Dry runs, limits per player and per rule, a global rate limit and loop protection keep them from getting out of hand. [`Documentation/Automations.md`](Documentation/Automations.md) has everything, with examples.
+
+Rules can reach beyond one account. Run another instance headless, without Discord, for a second account, and let the first read it as an external source, such as to befriend everyone who applies to a club the first account can't manage. [`Documentation/ExternalSources.md`](Documentation/ExternalSources.md) explains how, and how it's secured.
 
 ## Quick start
 
@@ -94,13 +97,15 @@ Everything has a default in [`appsettings.json`](GeoGuessrAccountShadowBot.Host/
 |---|---|
 | `GeoGuessr` | Token, socket settings, yield times, club |
 | `Polling` | Catch-up and ranked intervals, paging limits |
-| `Discord` | Bot token, server, default and status channels |
+| `Discord` | Bot token, server, default and status channels, or `Enabled: false` to run headless |
 | `Forum` | The forum channel for conversations |
 | `Control` | Authorized roles, one switch per action, and automations |
 | `Events` | One entry per event: `Enabled`, and optional `Card`, `ChannelId` and `PingRoleIds` |
 | `Database` | Where the SQLite file lives |
+| `ExternalApi` | Serving this instance to others, with a token and allow-list per client |
+| `Sources` | Other instances this one reads |
 
-The required values are `GeoGuessr:NcfaToken`, `Discord:Token`, `Discord:GuildId`, `Discord:DefaultChannelId` and `Forum:ChannelId`. Actions are off until you enable them and set `Control:AuthorizedRoleIds`. The bot checks the configuration at startup and lists every problem at once.
+The required values are `GeoGuessr:NcfaToken`, `Discord:Token`, `Discord:GuildId`, `Discord:DefaultChannelId` and `Forum:ChannelId`, and only the first when running headless. Actions are off until you enable them and set `Control:AuthorizedRoleIds`. The bot checks the configuration at startup and lists every problem at once.
 
 To keep an event for automations but post no card for it, set its `Card` to `false`, such as `Events__ClubApplicationReceived__Card=false` for a club application that a rule announces instead. `Enabled` set to `false` switches the event off entirely, rules included. Direct messages have no card, only their forum post, so `Events:DmMessage` only has `Enabled`.
 
@@ -121,7 +126,7 @@ Set `GeoGuessr:Socket:Enabled` to `false` for polling only. Mirroring then lags 
 
 ## Data it stores
 
-A SQLite file holds the ids of processed events for 90 days, friend and club snapshots, player names, automation rules, and an audit log of actions taken from Discord or by automations. Chat text waits there only until it's delivered, and is then removed. Automation runs are kept for 30 days without their event data, and which rules ran for which player is kept for good, so that a rule can run once per player.
+A SQLite file holds the ids of processed events for 90 days, friend and club snapshots, player names, automation rules, and an audit log of actions taken from Discord or by automations. Chat text waits there only until it's delivered, and is then removed. Automation runs are kept for 30 days without their event data, and which rules ran for which player is kept for good, so that a rule can run once per player. With `ExternalApi` on, the events clients may receive are kept for `EventRetention`, seven days by default, including the text of messages if a client may receive `DmMessage` or `ClubChat`.
 
 ## Development
 

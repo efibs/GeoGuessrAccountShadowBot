@@ -12,6 +12,8 @@ The published image contains these third-party packages, with versions set in `D
 | Apache-2.0 | SQLitePCLRaw.bundle_e_sqlite3, SQLitePCLRaw.core, SQLitePCLRaw.lib.e_sqlite3, SQLitePCLRaw.provider.e_sqlite3 |
 | Public domain | SQLite, bundled by SQLitePCLRaw |
 
+It is built on `mcr.microsoft.com/dotnet/aspnet`, which holds the .NET and ASP.NET Core runtimes under the MIT license, on a Linux distribution with its own licenses.
+
 ## GPL compatibility
 
 The Free Software Foundation considers Apache-2.0 incompatible with GPL version 2 alone, and compatible with GPL version 3. Because this project allows any later version of the GPL, the combined work can be distributed under the terms of GPL version 3, which is how the published image is distributed.

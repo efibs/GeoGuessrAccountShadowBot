@@ -16,6 +16,8 @@ Automations are rules that act as the account by themselves. A rule says what st
 - [Examples](#examples)
 - [How it works](#how-it-works)
 
+Rules can also read other instances of the bot, and start on their events. See [Headless mode and external sources](ExternalSources.md).
+
 ## Getting started
 
 1. Set `Control:Automation:Enabled` to `true`.
@@ -81,6 +83,7 @@ Durations are written as `30s`, `10m`, `2h`, `1d`, or `hh:mm:ss`. Property names
 | `Schedule` | A cron schedule, such as `"0 18 * * *"` for 18:00 daily | `scheduled_at` |
 | `Manual` | Only `/automation run` | `requested_by`, `text` |
 | `Custom:<name>` | A `Raise` step in another rule | Whatever the raising rule sends, plus `source_rule`, `source_run` |
+| `Source:<source>:<trigger>` | An event of an [external source](ExternalSources.md), such as `Source:dragon:ClubApplicationReceived` | The event's fields at the source, plus `source` |
 
 Every event also has `event.trigger` and `event.occurred_at`. Any rule can be started by hand with `/automation run`.
 
@@ -119,6 +122,8 @@ The fields in the first three rows are known without asking GeoGuessr. A rule th
 
 Also available are `rule.name`, `run.id`, `run.trigger`, `run.depth`, `run.dry_run`, `run.manual`, `account.id`, `account.club_id`, and `now`, the current time in UTC.
 
+**`sources`** holds what [external sources](ExternalSources.md#reading-a-source) know, such as `sources.dragon.player.has_applied` for the run's player at the source named `dragon`, or `sources.dragon.account.club_id`. A rule reads a source when it starts, once for each part its scripts name.
+
 Scripts only see these values. They can't read files or reach anything else, and they stop after 2 seconds, 1000 loop iterations, or a slow regular expression.
 
 ## Steps
@@ -156,7 +161,7 @@ Discord text may use markdown. Values put into it, such as names and messages, a
 | `Wait` | `{ "Wait": "30s" }` | Pause, up to 7 days. Waits survive restarts |
 | `RequireApproval` | `{ "RequireApproval": "Accept {{ player.nick }}?" }` | Pause until someone approves in Discord, see [Reports and approvals](#reports-and-approvals). The long form takes `Prompt`, `Timeout` (default `1d`) and `ChannelId` |
 | `Raise` | `{ "Raise": "vip" }` | Start the rules with `On: "Custom:vip"`, for the same player |
-| `Raise` | `{ "Raise": { "Event": "vip", "ForEach": "Friends", "Data": { "why": "{{ rule.name }}" } } }` | Start them once per friend. `ForEach` also takes `FriendRequests`, `ClubMembers` and `ClubApplications`, and `Player` picks one player instead |
+| `Raise` | `{ "Raise": { "Event": "vip", "ForEach": "Friends", "Data": { "why": "{{ rule.name }}" } } }` | Start them once per friend. `ForEach` also takes `FriendRequests`, `ClubMembers` and `ClubApplications`, or a source's group such as `Source:dragon:ClubApplications`, and `Player` picks one player instead |
 | `Stop` | `{ "Stop": "Nothing to do" }` | End the run |
 
 A rule has at most 50 steps, counting the jumps `If` adds.
@@ -191,6 +196,7 @@ Reports, approvals and posts go to the rule's `ReportChannelId`, else `Control:A
 | `/automation show <name>` | Authorized and managers | The rule and its recent runs |
 | `/automation test <name> [player] [text]` | Authorized and managers | A dry run that records nothing |
 | `/automation runs [name]` | Authorized and managers | Recent runs |
+| `/automation sources` | Authorized and managers | Whether each [external source](ExternalSources.md) is connected, and its last event |
 | `/automation create` | Managers | Opens a form for the rule |
 | `/automation edit <name>` | Managers | Opens the rule in a form |
 | `/automation enable`, `disable <name>` | Managers | Switch a rule on or off |

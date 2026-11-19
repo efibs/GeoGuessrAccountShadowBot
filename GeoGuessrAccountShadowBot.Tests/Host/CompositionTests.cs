@@ -123,6 +123,48 @@ public sealed class CompositionTests
         options.Polling.MaxCatchUpAge.Should().Be(TimeSpan.FromDays(7));
     }
 
+    /// <summary>A headless instance has no Discord at all, so nothing may wait for it.</summary>
+    [Fact]
+    public void Headless_BuildsWithoutAnythingOfDiscord()
+    {
+        using var host = BuildHost(
+            ("Discord:Enabled", "false"), ("Discord:Token", ""), ("Discord:GuildId", "0"), ("Forum:ChannelId", ""),
+            ("Control:Automation:Enabled", "true"));
+
+        host.Services.GetRequiredService<IOptions<ShadowOptions>>().Value.IsHeadless.Should().BeTrue();
+        host.Services.GetServices<IHostedService>().Select(service => service.GetType().Name)
+            .Should().NotContain(["DiscordBotService", "OutboxDispatcher"])
+            .And.Contain(["SourceEventWorker", "ExternalApiServer"]);
+        host.Services.GetRequiredService<IGuildRoleReader>().Should().BeOfType<GeoGuessrAccountShadowBot.Application.Control.NoGuildRoles>();
+    }
+
+    [Fact]
+    public async Task ExternalApi_AndSources_StartAndStop_ThroughTheRealGraph()
+    {
+        using var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        probe.Start();
+        var port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+        probe.Stop();
+
+        using var host = BuildHost(
+            ("ExternalApi:Enabled", "true"),
+            ("ExternalApi:Port", port.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("ExternalApi:Clients:main:Token", "token-of-the-main-instance-0123456789"),
+            ("ExternalApi:Clients:main:Data:0", "Players"),
+            ("Sources:dragon:Url", "http://dragon-headless:8080"),
+            ("Sources:dragon:Token", "token-of-the-main-instance-0123456789"),
+            ("Sources:dragon:UnhealthyAfter", ""));
+
+        // Empty means the health check never fails on this source, as documented.
+        host.Services.GetRequiredService<IOptions<ShadowOptions>>().Value.Sources["dragon"].UnhealthyAfter.Should().BeNull();
+        host.Services.GetRequiredService<GeoGuessrAccountShadowBot.Application.Sources.ExternalSources>().Find("dragon").Should().NotBeNull();
+
+        var server = host.Services.GetServices<IHostedService>().OfType<GeoGuessrAccountShadowBot.Api.ExternalApiServer>().Single();
+        await server.StartAsync(CancellationToken.None);
+        server.Port.Should().Be(port);
+        await server.StopAsync(CancellationToken.None);
+    }
+
     [Fact]
     public void InvalidConfiguration_IsRefusedWithEveryProblemListed()
     {
