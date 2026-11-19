@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 using AwesomeAssertions;
-using GeoGuessrAccountShadowBot.Application.Options;
 using Discord.Interactions;
+using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using GeoGuessrAccountShadowBot.Discord.Input;
 using GeoGuessrAccountShadowBot.Host;
