@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 using AwesomeAssertions;
+using Discord.Interactions;
 using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Application.Ports;
+using GeoGuessrAccountShadowBot.Discord.Input;
 using GeoGuessrAccountShadowBot.Host;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,6 +55,25 @@ public sealed class CompositionTests
         using var host = BuildHost();
 
         host.Services.GetServices<IHostedService>().Should().HaveCountGreaterThan(5);
+    }
+
+    /// <summary>
+    /// Discord.Net checks handlers only when a module is added on Ready. A module it refuses
+    /// throws there, and stops every module and the command registration after it (issue #21).
+    /// </summary>
+    [Fact]
+    public async Task EveryInteractionModule_IsAcceptedByDiscordNet()
+    {
+        using var host = BuildHost(("Control:Automation:Enabled", "true"));
+        var interactions = host.Services.GetRequiredService<InteractionService>();
+
+        await interactions.AddModuleAsync<FriendRequestModule>(host.Services);
+        await interactions.AddModuleAsync<ShadowCommandsModule>(host.Services);
+        await interactions.AddModuleAsync<AutomationModule>(host.Services);
+        await interactions.AddModuleAsync<AutomationInteractionsModule>(host.Services);
+
+        interactions.ModalCommands.Select(command => command.Name).Should().BeEquivalentTo(["au:create", "au:edit:*"]);
+        interactions.ComponentCommands.Select(command => command.Name).Should().Contain(["au:ok:*", "au:no:*"]);
     }
 
     [Fact]

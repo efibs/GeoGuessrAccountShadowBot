@@ -155,11 +155,12 @@ public sealed class AutomationInteractionsModule(AutomationService automations, 
 {
     private CancellationToken Stopping => lifetime.ApplicationStopping;
 
+    // Discord.Net only accepts a modal handler whose last parameter is the modal.
     [ModalInteraction(AutomationButtonIds.CreateForm)]
-    public Task CreateAsync() => SaveAsync(null);
+    public Task CreateAsync(AutomationRuleForm form) => SaveAsync(null, form);
 
     [ModalInteraction(AutomationButtonIds.EditFormPrefix + "*")]
-    public Task EditAsync(string name) => SaveAsync(name);
+    public Task EditAsync(string name, AutomationRuleForm form) => SaveAsync(name, form);
 
     [ComponentInteraction("au:ok:*")]
     public Task ApproveAsync(long runId) => DecideAsync(runId, approve: true);
@@ -167,13 +168,11 @@ public sealed class AutomationInteractionsModule(AutomationService automations, 
     [ComponentInteraction("au:no:*")]
     public Task RejectAsync(long runId) => DecideAsync(runId, approve: false);
 
-    private async Task SaveAsync(string? editing)
+    private async Task SaveAsync(string? editing, AutomationRuleForm form)
     {
         await DeferAsync(ephemeral: true).ConfigureAwait(false);
 
-        var json = Context.Interaction is SocketModal modal
-            ? modal.Data.Components.FirstOrDefault(component => component.CustomId == AutomationButtonIds.RuleField)?.Value
-            : null;
+        var json = form.Rule;
 
         var reply = string.IsNullOrWhiteSpace(json)
             ? new AutomationReply(false, "The form was empty.")
@@ -188,6 +187,18 @@ public sealed class AutomationInteractionsModule(AutomationService automations, 
         var reply = await automations.DecideAsync(Context.User.Id, runId, approve, Stopping).ConfigureAwait(false);
         await AutomationReplies.FollowupAsync(Context.Interaction, reply).ConfigureAwait(false);
     }
+}
+
+/// <summary>
+/// The rule form, as Discord.Net reads it back. The form that's shown is built by
+/// <see cref="AutomationModule"/>, with the rule filled in when editing.
+/// </summary>
+public sealed class AutomationRuleForm : IModal
+{
+    public string Title => "Automation";
+
+    [ModalTextInput(AutomationButtonIds.RuleField, TextInputStyle.Paragraph)]
+    public string? Rule { get; set; }
 }
 
 /// <summary>Suggests rule names, to people who may see the rules.</summary>

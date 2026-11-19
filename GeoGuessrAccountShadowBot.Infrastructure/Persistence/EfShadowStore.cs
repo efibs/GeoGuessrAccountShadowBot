@@ -5,6 +5,7 @@ using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Application.Notifications;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GeoGuessrAccountShadowBot.Infrastructure.Persistence;
 
@@ -14,6 +15,9 @@ namespace GeoGuessrAccountShadowBot.Infrastructure.Persistence;
 internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeProvider) : IShadowStore, IAutomationStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
+    /// <summary>The conversion the model applies to every <see cref="DateTimeOffset"/>, for raw SQL.</summary>
+    private static readonly DateTimeOffsetToBinaryConverter FetchedAtConverter = new();
 
     public async Task<bool> TryMarkProcessedAsync(string key, CancellationToken cancellationToken = default)
     {
@@ -219,21 +223,25 @@ internal sealed class EfShadowStore(ShadowDbContext database, TimeProvider timeP
 
     public async Task<PlayerName?> FindPlayerNameAsync(string userId, CancellationToken cancellationToken = default)
     {
-        var row = await database.PlayerNames.FindAsync([userId], cancellationToken).ConfigureAwait(false);
+        var row = await database.PlayerNames.AsNoTracking()
+            .FirstOrDefaultAsync(name => name.UserId == userId, cancellationToken).ConfigureAwait(false);
         return row is null ? null : new PlayerName(row.UserId, row.Nick, row.FetchedAt);
     }
 
+    /// <summary>
+    /// Upserts right away rather than at <see cref="CommitAsync"/>. The outbox dispatcher and the
+    /// automation worker look up the same new player at the same moment, and a cache insert in the
+    /// unit of work made the loser's commit fail after its card had already reached Discord.
+    /// </summary>
     public async Task SavePlayerNameAsync(PlayerName name, CancellationToken cancellationToken = default)
     {
-        var row = await database.PlayerNames.FindAsync([name.UserId], cancellationToken).ConfigureAwait(false);
-        if (row is null)
-        {
-            database.PlayerNames.Add(new PlayerNameRow { UserId = name.UserId, Nick = name.Nick, FetchedAt = name.FetchedAt });
-            return;
-        }
-
-        row.Nick = name.Nick;
-        row.FetchedAt = name.FetchedAt;
+        var fetchedAt = (long)FetchedAtConverter.ConvertToProvider(name.FetchedAt)!;
+        await database.Database.ExecuteSqlAsync(
+            $"""
+             INSERT INTO "PlayerNames" ("UserId", "Nick", "FetchedAt") VALUES ({name.UserId}, {name.Nick}, {fetchedAt})
+             ON CONFLICT ("UserId") DO UPDATE SET "Nick" = excluded."Nick", "FetchedAt" = excluded."FetchedAt"
+             """,
+            cancellationToken).ConfigureAwait(false);
     }
 
     public void AddAudit(ControlAudit audit) => database.ControlAudits.Add(new ControlAuditRow

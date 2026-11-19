@@ -115,23 +115,68 @@ public sealed partial class OutboxDispatcher(
             var publisher = scope.ServiceProvider.GetRequiredService<IDiscordPublisher>();
 
             var result = await publisher.PublishAsync(entry.Message, cancellationToken).ConfigureAwait(false);
-
-            switch (result.Status)
+            if (result.Status == DeliveryStatus.Transient)
             {
-                case DeliveryStatus.Delivered:
-                    await store.MarkDeliveredAsync(entry.Id, cancellationToken).ConfigureAwait(false);
-                    break;
-                case DeliveryStatus.Permanent:
-                    LogDeliveryFailed(entry.Message.GetType().Name, result.Reason);
-                    await store.MarkFailedAsync(entry.Id, result.Reason ?? "unknown", cancellationToken).ConfigureAwait(false);
-                    break;
-                case DeliveryStatus.Transient:
-                    return result;
+                return result;
             }
 
-            await store.CommitAsync(cancellationToken).ConfigureAwait(false);
+            if (result.Status == DeliveryStatus.Permanent)
+            {
+                LogDeliveryFailed(entry.Message.GetType().Name, result.Reason);
+            }
+
+            try
+            {
+                await RecordAsync(store, entry.Id, result, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // Discord already has the message, so this must not stop the host: a restart would
+                // send it again. A clean unit of work only holds the mark, so it gets one more try.
+                LogRecordFailed(exception, entry.Message.GetType().Name);
+                if (!await RecordInFreshScopeAsync(entry.Id, result, cancellationToken).ConfigureAwait(false))
+                {
+                    // Back off, so that a broken database doesn't resend the entry in a tight loop.
+                    return new DeliveryResult(DeliveryStatus.Transient, "The outcome could not be recorded.");
+                }
+            }
+
             return result;
         }
+    }
+
+    private async Task<bool> RecordInFreshScopeAsync(long id, DeliveryResult result, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var scope = scopes.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                await RecordAsync(scope.ServiceProvider.GetRequiredService<IShadowStore>(), id, result, cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // The entry stays queued and will be sent again, which is the duplicate the class
+            // comment accepts, rather than a crash that would cause the same and more.
+            LogRecordFailed(exception, "retry");
+            return false;
+        }
+    }
+
+    private static async Task RecordAsync(IShadowStore store, long id, DeliveryResult result, CancellationToken cancellationToken)
+    {
+        if (result.Status == DeliveryStatus.Delivered)
+        {
+            await store.MarkDeliveredAsync(id, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await store.MarkFailedAsync(id, result.Reason ?? "unknown", cancellationToken).ConfigureAwait(false);
+        }
+
+        await store.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task PruneIfDueAsync(CancellationToken cancellationToken)
@@ -155,6 +200,9 @@ public sealed partial class OutboxDispatcher(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Delivering a {MessageType} to Discord will be retried: {Reason}")]
     private partial void LogDeliveryPostponed(string messageType, string? reason);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Recording the outcome of a delivered {MessageType} failed")]
+    private partial void LogRecordFailed(Exception exception, string messageType);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "A {MessageType} could not be delivered to Discord: {Reason}")]
     private partial void LogDeliveryFailed(string messageType, string? reason);

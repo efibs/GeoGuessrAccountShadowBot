@@ -43,6 +43,43 @@ public sealed class PersistenceTests
     }
 
     [Fact]
+    public async Task ConcurrentNameLookups_DontBreakEachOthersCommit()
+    {
+        // Issue #19: the automation worker and the outbox dispatcher cached the same new player at
+        // once, and the dispatcher's commit, which also marked its card delivered, failed.
+        await using var host = await ShadowTestHost.CreateAsync();
+        await host.WithStoreAsync(async store =>
+        {
+            store.Enqueue(new StatusMessage("t", "d", false));
+            await store.CommitAsync();
+            return true;
+        });
+        var entry = (await host.ReadOutboxAsync()).Single();
+
+        var dispatcher = host.Services.CreateAsyncScope();
+        await using (dispatcher)
+        {
+            var dispatcherStore = dispatcher.ServiceProvider.GetRequiredService<IShadowStore>();
+            await dispatcherStore.SavePlayerNameAsync(new PlayerName("user", "first", DateTimeOffset.UnixEpoch));
+
+            await host.WithStoreAsync(async automation =>
+            {
+                await automation.SavePlayerNameAsync(new PlayerName("user", "second", DateTimeOffset.UnixEpoch.AddHours(1)));
+                await automation.CommitAsync();
+                return true;
+            });
+
+            await dispatcherStore.MarkDeliveredAsync(entry.Id);
+            var commit = () => dispatcherStore.CommitAsync();
+            await commit.Should().NotThrowAsync();
+        }
+
+        (await host.ReadOutboxAsync()).Should().BeEmpty();
+        var cached = await host.WithStoreAsync(store => store.FindPlayerNameAsync("user"));
+        cached.Should().Be(new PlayerName("user", "second", DateTimeOffset.UnixEpoch.AddHours(1)));
+    }
+
+    [Fact]
     public async Task ProcessedKey_IsOnlyNewOnce()
     {
         await using var host = await ShadowTestHost.CreateAsync();

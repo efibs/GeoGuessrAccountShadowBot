@@ -113,6 +113,8 @@ Scriban's functions are available, such as `string.contains`, `string.downcase`,
 | `club.id`, `club.tag`, `club.name`, `club.level` | Their club, or null |
 | `ranked.division`, `ranked.rating`, `ranked.peak_rating`, `ranked.recent_wins`, `ranked.recent_games` | Ranked, or null |
 
+Reading through a field that is null gives null rather than an error, so `player.club.id != account.club_id` is true for someone without a club.
+
 The fields in the first three rows are known without asking GeoGuessr. A rule that reads any other field costs a profile lookup per run.
 
 Also available are `rule.name`, `run.id`, `run.trigger`, `run.depth`, `run.dry_run`, `run.manual`, `account.id`, `account.club_id`, and `now`, the current time in UTC.

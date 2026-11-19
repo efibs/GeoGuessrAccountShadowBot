@@ -262,6 +262,31 @@ public sealed class AutomationScriptTests
         scope.Evaluate(Expression(condition)).Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData("player.club.id != account.club_id", true)]
+    [InlineData("player.club.id == account.club_id", false)]
+    [InlineData("player.club.tag == null", true)]
+    [InlineData("player.ranked.rating > 1000", false)]
+    public void MembersOfNull_AreNull(string condition, bool expected)
+    {
+        // Issue #20: someone without a club failed every rule that compared player.club.id.
+        var scope = new AutomationScope(new ScriptObject
+        {
+            ["player"] = new ScriptObject { ["club"] = null, ["ranked"] = null },
+            ["account"] = new ScriptObject { ["club_id"] = "our-club" }
+        });
+
+        scope.Evaluate(Expression(condition)).Should().Be(expected);
+    }
+
+    [Fact]
+    public void MembersOfNull_RenderAsNothing()
+    {
+        var scope = Scope(new ScriptObject { ["club"] = null });
+
+        scope.RenderPlain(Template("[{{ player.club.name }}]")).Should().Be("[]");
+    }
+
     [Fact]
     public void Templates_RenderPlainForGeoGuessr()
     {
