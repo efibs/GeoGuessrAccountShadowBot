@@ -82,6 +82,10 @@ public interface IShadowStore
 
     Task<PlayerName?> FindPlayerNameAsync(string userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Caches a name. Unlike other writes it's saved immediately, outside the unit of work, so that
+    /// two lookups of the same player can't make each other's commit fail.
+    /// </summary>
     Task SavePlayerNameAsync(PlayerName name, CancellationToken cancellationToken = default);
 
     void AddAudit(ControlAudit audit);

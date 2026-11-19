@@ -145,6 +145,7 @@ public sealed class AutomationScope(ScriptObject globals)
         context.RegexTimeOut = RegexTimeout;
         context.StrictVariables = false;
         context.EnableRelaxedMemberAccess = true;
+        context.EnableRelaxedTargetAccess = true;
         context.TemplateLoader = null;
         context.CancellationToken = timeout.Token;
         context.PushCulture(CultureInfo.InvariantCulture);
