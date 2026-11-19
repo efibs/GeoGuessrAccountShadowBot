@@ -23,6 +23,9 @@ public sealed class ShadowOptions
     public DatabaseOptions Database { get; set; } = new();
 
     public bool IsEventEnabled(string key) => Events.TryGetValue(key, out var options) && options.Enabled;
+
+    /// <summary>Whether the event is on and posts its own card, rather than only starting rules.</summary>
+    public bool IsCardEnabled(string key) => Events.TryGetValue(key, out var options) && options.Enabled && options.Card;
 }
 
 public sealed class GeoGuessrOptions
@@ -212,7 +215,14 @@ public sealed class ToggleOptions
 
 public sealed class EventOptions
 {
+    /// <summary>Whether the bot watches for the event at all. Rules only start on watched events.</summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Whether the event posts its card in Discord. Off keeps the event for rules, for when an
+    /// automation announces it instead. Direct messages have no card, only their forum post.
+    /// </summary>
+    public bool Card { get; set; } = true;
 
     /// <summary>Overrides <see cref="DiscordOptions.DefaultChannelId"/> for this event.</summary>
     public ulong? ChannelId { get; set; }

@@ -173,6 +173,39 @@ public sealed class EventPipelineTests
     }
 
     [Fact]
+    public async Task CardSwitchedOff_PostsNoCard_ButTheEventIsStillRecorded()
+    {
+        await using var host = await ShadowTestHost.CreateAsync(options =>
+        {
+            options.Events[EventKeys.FriendRequestAccepted].Card = false;
+            options.Events[EventKeys.FriendRequestReceived].Card = false;
+            options.Events[EventKeys.BadgeUnlocked].Card = false;
+        });
+        await host.ProcessAsync(new FriendshipsFetched(Friendships(outgoing: [Peer])));
+
+        await host.ProcessAsync(new FriendshipsFetched(Friendships(friends: [Peer], incoming: ["cccccccccccccccccccccccc"])));
+        await host.ProcessAsync(new FriendshipsFetched(Friendships(friends: [Peer, "cccccccccccccccccccccccc"])));
+        var badge = new AccountNotification("n1", NotificationType.UnlockedBadge, null, null, host.Time.GetUtcNow());
+        await host.ProcessAsync(new AccountNotificationReceived(badge, EventKeys.BadgeUnlocked));
+
+        (await host.ReadQueuedMessagesAsync()).Should().AllBeOfType<StatusMessage>("only the first sync's summary is no card");
+        (await host.WithStoreAsync(store => store.FindProcessedAsync([new AccountNotificationReceived(badge, EventKeys.BadgeUnlocked).DedupeKey])))
+            .Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task CardSwitchedOff_LeavesTheOtherEventsCards()
+    {
+        await using var host = await ShadowTestHost.CreateAsync(options => options.Events[EventKeys.FriendRequestReceived].Card = false);
+        await host.ProcessAsync(new FriendshipsFetched(Friendships(outgoing: [Peer])));
+
+        await host.ProcessAsync(new FriendshipsFetched(Friendships(friends: [Peer])));
+
+        (await host.ReadQueuedMessagesAsync()).OfType<EventCard>().Should().ContainSingle()
+            .Which.EventKey.Should().Be(EventKeys.FriendRequestAccepted);
+    }
+
+    [Fact]
     public async Task NotificationAndSnapshotOfTheSameAcceptance_AnnounceItOnce()
     {
         await using var host = await ShadowTestHost.CreateAsync();

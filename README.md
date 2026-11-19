@@ -97,10 +97,12 @@ Everything has a default in [`appsettings.json`](GeoGuessrAccountShadowBot.Host/
 | `Discord` | Bot token, server, default and status channels |
 | `Forum` | The forum channel for conversations |
 | `Control` | Authorized roles, one switch per action, and automations |
-| `Events` | One entry per event: `Enabled`, optional `ChannelId` and `PingRoleIds` |
+| `Events` | One entry per event: `Enabled`, and optional `Card`, `ChannelId` and `PingRoleIds` |
 | `Database` | Where the SQLite file lives |
 
 The required values are `GeoGuessr:NcfaToken`, `Discord:Token`, `Discord:GuildId`, `Discord:DefaultChannelId` and `Forum:ChannelId`. Actions are off until you enable them and set `Control:AuthorizedRoleIds`. The bot checks the configuration at startup and lists every problem at once.
+
+To keep an event for automations but post no card for it, set its `Card` to `false`, such as `Events__ClubApplicationReceived__Card=false` for a club application that a rule announces instead. `Enabled` set to `false` switches the event off entirely, rules included. Direct messages have no card, only their forum post, so `Events:DmMessage` only has `Enabled`.
 
 Set `GeoGuessr:Socket:Enabled` to `false` for polling only. Mirroring then lags by about two minutes, and replies aren't possible.
 

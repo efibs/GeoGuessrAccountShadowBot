@@ -130,6 +130,18 @@ public sealed class AutomationEngineTests
     }
 
     [Fact]
+    public async Task EventWithoutACard_StillStartsItsRules()
+    {
+        await using var host = await HostAsync(options => options.Events[EventKeys.FriendRequestAccepted].Card = false, Welcome);
+
+        await host.ProcessAsync(new FriendRequestAccepted(Peer));
+        await RunAutomationsAsync(host);
+
+        await host.Sender.Received(1).SendDirectMessageAsync(Peer, "Hi Peery!", Arg.Any<CancellationToken>());
+        (await QueuedAsync<EventCard>(host)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task SilentEvents_StartNothing()
     {
         await using var host = await HostAsync(Welcome);
