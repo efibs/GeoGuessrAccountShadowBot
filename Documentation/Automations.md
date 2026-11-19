@@ -33,7 +33,7 @@ Automations are rules that act as the account by themselves. A rule says what st
 
 With `DryRun`, the rule only reports what it would do. Try it with `/automation test welcome-new-friends player:<profile link>`, then remove `DryRun` with `/automation edit`.
 
-A rule can only run on an event that is switched on in `Events`. The rule above needs `Events:FriendRequestAccepted:Enabled`, which is on by default.
+A rule can only run on an event that is switched on in `Events`. The rule above needs `Events:FriendRequestAccepted:Enabled`, which is on by default. To have a rule post instead of the bot's own card, keep the event on and set its `Card` to `false`, such as `Events:ClubApplicationReceived:Card`.
 
 ## Writing rules
 

@@ -83,7 +83,12 @@ public sealed class ShadowOptionsValidator : IValidateOptions<ShadowOptions>
             errors.Add($"Events:{key} is missing.");
         }
 
-        foreach (var (key, settings) in options.Events.Where(entry => entry.Value.Enabled))
+        if (options.Events.TryGetValue(EventKeys.DmMessage, out var dm) && !dm.Card)
+        {
+            errors.Add($"Events:{EventKeys.DmMessage}:Card can't be switched off, because messages have no card. Use Enabled.");
+        }
+
+        foreach (var (key, settings) in options.Events.Where(entry => entry.Value.Enabled && entry.Value.Card))
         {
             if (key == EventKeys.DmMessage)
             {
@@ -150,9 +155,9 @@ public sealed class ShadowOptionsValidator : IValidateOptions<ShadowOptions>
             }
         }
 
-        if (control.FriendRequestButtons.Enabled && !options.IsEventEnabled(EventKeys.FriendRequestReceived))
+        if (control.FriendRequestButtons.Enabled && !options.IsCardEnabled(EventKeys.FriendRequestReceived))
         {
-            errors.Add($"Control:FriendRequestButtons needs Events:{EventKeys.FriendRequestReceived}.");
+            errors.Add($"Control:FriendRequestButtons needs Events:{EventKeys.FriendRequestReceived} with its card, which holds the buttons.");
         }
 
         if (control.ClubChat.Enabled && (!options.GeoGuessr.Club.Enabled || !options.GeoGuessr.Socket.Enabled))

@@ -146,6 +146,38 @@ public sealed class ShadowOptionsValidatorTests
         Validate(options).Should().ContainSingle().Which.Should().Contain("FriendRequestButtons");
     }
 
+    [Fact]
+    public void Validate_RequiresTheFriendRequestCardForButtons()
+    {
+        var options = TestOptions.Valid();
+        options.Control.FriendRequestButtons.Enabled = true;
+        options.Events[EventKeys.FriendRequestReceived].Card = false;
+
+        Validate(options).Should().ContainSingle().Which.Should().Contain("FriendRequestButtons");
+    }
+
+    [Fact]
+    public void Validate_RefusesSwitchingOffTheCardOfMessages_WhichHaveNone()
+    {
+        var options = TestOptions.Valid();
+        options.Events[EventKeys.DmMessage].Card = false;
+
+        Validate(options).Should().ContainSingle().Which.Should().Contain("DmMessage:Card");
+    }
+
+    [Fact]
+    public void Validate_NeedsNoChannel_ForAnEventWithoutACard()
+    {
+        var options = TestOptions.Valid();
+        options.Discord.DefaultChannelId = 0;
+        foreach (var settings in options.Events.Where(entry => entry.Key != EventKeys.DmMessage).Select(entry => entry.Value))
+        {
+            settings.Card = false;
+        }
+
+        Validate(options).Should().NotContain(error => error.Contains("ChannelId", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData(EventKeys.ClubChat)]
     [InlineData(EventKeys.ClubMemberJoined)]
