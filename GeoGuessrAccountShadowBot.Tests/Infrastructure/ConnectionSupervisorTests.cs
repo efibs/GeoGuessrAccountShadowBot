@@ -61,7 +61,8 @@ public sealed class ConnectionSupervisorTests : IAsyncLifetime
             _host.Get<ReconcileRequests>(),
             _host.Get<IOptions<ShadowOptions>>(),
             _host.Time,
-            NullLogger<ConnectionSupervisor>.Instance);
+            NullLogger<ConnectionSupervisor>.Instance,
+            _host.Get<WorkerSupervision>());
     }
 
     public async Task DisposeAsync()
@@ -354,7 +355,7 @@ public sealed class ConnectionSupervisorTests : IAsyncLifetime
         await StartAsync();
         await EventuallyAsync(() => _supervisor.ExecuteTask?.IsFaulted == true);
 
-        _supervisor.ExecuteTask!.Exception!.InnerException.Should().BeOfType<InvalidOperationException>();
+        _supervisor.ExecuteTask!.Exception!.InnerException.Should().BeOfType<FatalShadowException>();
     }
 
     private sealed class ScriptedConnector : ISocketConnector

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 using GeoGuessrAccountShadowBot.Application.Options;
+using GeoGuessrAccountShadowBot.Application.Pipeline;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +21,8 @@ public sealed partial class AutomationWorker(
     AccountContext account,
     IOptions<ShadowOptions> options,
     TimeProvider timeProvider,
-    ILogger<AutomationWorker> logger) : BackgroundService
+    ILogger<AutomationWorker> logger,
+    WorkerSupervision supervision) : SupervisedBackgroundService(supervision)
 {
     private const int BatchSize = 25;
     private const int MaxCrashes = 3;
@@ -66,7 +68,7 @@ public sealed partial class AutomationWorker(
         return due.Count;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.Control.Automation.Enabled)
         {
@@ -131,7 +133,8 @@ public sealed partial class AutomationScheduler(
     AccountContext account,
     IOptions<ShadowOptions> options,
     TimeProvider timeProvider,
-    ILogger<AutomationScheduler> logger) : BackgroundService
+    ILogger<AutomationScheduler> logger,
+    WorkerSupervision supervision) : SupervisedBackgroundService(supervision)
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(20);
 
@@ -191,7 +194,7 @@ public sealed partial class AutomationScheduler(
         }
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.Control.Automation.Enabled)
         {

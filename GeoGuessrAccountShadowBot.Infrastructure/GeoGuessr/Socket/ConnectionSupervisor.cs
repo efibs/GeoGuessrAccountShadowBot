@@ -32,7 +32,8 @@ internal sealed partial class ConnectionSupervisor(
     ReconcileRequests reconcileRequests,
     IOptions<ShadowOptions> options,
     TimeProvider timeProvider,
-    ILogger<ConnectionSupervisor> logger) : BackgroundService
+    ILogger<ConnectionSupervisor> logger,
+    WorkerSupervision supervision) : SupervisedBackgroundService(supervision)
 {
     private const int MaxJitterMilliseconds = 250;
 
@@ -45,7 +46,7 @@ internal sealed partial class ConnectionSupervisor(
     private CancellationTokenSource _interrupt = new();
     private bool _authSuspect;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         status.ReconnectRequested += Interrupt;
         status.UnauthorizedReported += OnUnauthorizedReported;

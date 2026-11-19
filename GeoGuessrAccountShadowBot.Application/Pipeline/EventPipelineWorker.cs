@@ -8,9 +8,10 @@ namespace GeoGuessrAccountShadowBot.Application.Pipeline;
 /// The single consumer of the event queue. Handling events one at a time is what keeps snapshot
 /// comparisons free of races.
 /// </summary>
-public sealed class EventPipelineWorker(EventBus bus, EventProcessor processor) : BackgroundService
+public sealed class EventPipelineWorker(EventBus bus, EventProcessor processor, WorkerSupervision supervision)
+    : SupervisedBackgroundService(supervision)
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         await foreach (var shadowEvent in bus.Reader.ReadAllAsync(stoppingToken).ConfigureAwait(false))
         {

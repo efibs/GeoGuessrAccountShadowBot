@@ -2,6 +2,7 @@
 
 using GeoGuessrAccountShadowBot.Application.Automation;
 using GeoGuessrAccountShadowBot.Application.Options;
+using GeoGuessrAccountShadowBot.Application.Pipeline;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using GeoGuessrAccountShadowBot.Application.Reconciliation;
 using GeoGuessrAccountShadowBot.Domain.Events;
@@ -61,7 +62,7 @@ public sealed class AccountInitializer(
             var stored = await store.ReadStateAsync<StoredAccount>(AccountStateKey, cancellationToken).ConfigureAwait(false);
             if (stored is not null && stored.UserId != userId)
             {
-                throw new InvalidOperationException(
+                throw new FatalShadowException(
                     "The database belongs to a different GeoGuessr account. Use a new database for this token.");
             }
 

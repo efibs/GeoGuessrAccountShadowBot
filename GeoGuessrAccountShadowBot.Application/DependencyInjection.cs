@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddSingleton<EventBus>();
         services.AddSingleton<IEventPublisher>(provider => provider.GetRequiredService<EventBus>());
         services.AddSingleton<EventProcessor>();
+        services.AddSingleton<WorkerSupervision>();
         services.AddScoped<EventContext>();
         services.AddScoped<IEventContext>(provider => provider.GetRequiredService<EventContext>());
 

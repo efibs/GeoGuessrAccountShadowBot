@@ -20,9 +20,10 @@ public sealed partial class ClubApplicationsPollingWorker(
     AccountContext account,
     IOptions<ShadowOptions> options,
     TimeProvider timeProvider,
-    ILogger<ClubApplicationsPollingWorker> logger) : BackgroundService
+    ILogger<ClubApplicationsPollingWorker> logger,
+    WorkerSupervision supervision) : SupervisedBackgroundService(supervision)
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         var settings = options.Value;
         if (!settings.IsEventEnabled(EventKeys.ClubApplicationReceived))

@@ -430,7 +430,7 @@ public sealed class AccountInitializerTests
         host.Api.GetOwnUserIdAsync(Arg.Any<CancellationToken>()).Returns("dddddddddddddddddddddddd");
         var act = () => host.Get<AccountInitializer>().InitializeAsync(CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*different GeoGuessr account*");
+        await act.Should().ThrowAsync<GeoGuessrAccountShadowBot.Application.Pipeline.FatalShadowException>().WithMessage("*different GeoGuessr account*");
     }
 
     [Fact]

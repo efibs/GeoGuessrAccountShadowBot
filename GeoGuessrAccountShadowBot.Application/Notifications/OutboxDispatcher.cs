@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+using GeoGuessrAccountShadowBot.Application.Pipeline;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -41,7 +42,8 @@ public sealed partial class OutboxDispatcher(
     IDiscordReadiness readiness,
     OutboxSignal signal,
     TimeProvider timeProvider,
-    ILogger<OutboxDispatcher> logger) : BackgroundService
+    ILogger<OutboxDispatcher> logger,
+    WorkerSupervision supervision) : SupervisedBackgroundService(supervision)
 {
     private const int BatchSize = 50;
     private const int MaxTransientBackoffSeconds = 300;
@@ -84,7 +86,7 @@ public sealed partial class OutboxDispatcher(
         }
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         await readiness.WaitUntilReadyAsync(stoppingToken).ConfigureAwait(false);
 
