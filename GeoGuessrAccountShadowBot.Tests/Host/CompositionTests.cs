@@ -67,13 +67,31 @@ public sealed class CompositionTests
         using var host = BuildHost(("Control:Automation:Enabled", "true"));
         var interactions = host.Services.GetRequiredService<InteractionService>();
 
-        await interactions.AddModuleAsync<FriendRequestModule>(host.Services);
-        await interactions.AddModuleAsync<ShadowCommandsModule>(host.Services);
-        await interactions.AddModuleAsync<AutomationModule>(host.Services);
-        await interactions.AddModuleAsync<AutomationInteractionsModule>(host.Services);
+        // Every module in the assembly, so a new one is checked without anyone listing it here.
+        var modules = await interactions.AddModulesAsync(typeof(AutomationModule).Assembly, host.Services);
 
+        modules.Select(module => module.Name).Should().Contain(
+            [nameof(FriendRequestModule), nameof(ShadowCommandsModule), nameof(AutomationModule), nameof(AutomationInteractionsModule)]);
         interactions.ModalCommands.Select(command => command.Name).Should().BeEquivalentTo(["au:create", "au:edit:*"]);
         interactions.ComponentCommands.Select(command => command.Name).Should().Contain(["au:ok:*", "au:no:*"]);
+    }
+
+    /// <summary>
+    /// A worker that throws stops the whole host, and the restart resends what was in flight
+    /// (issue #19). Only the health probe may do that, because a failing probe should restart the
+    /// container.
+    /// </summary>
+    [Fact]
+    public void EveryWorker_SurvivesItsOwnCrash()
+    {
+        using var host = BuildHost(("Control:Automation:Enabled", "true"));
+
+        var unsupervised = host.Services.GetServices<IHostedService>()
+            .OfType<BackgroundService>()
+            .Where(service => service is not GeoGuessrAccountShadowBot.Application.Pipeline.SupervisedBackgroundService)
+            .Select(service => service.GetType().Name);
+
+        unsupervised.Should().BeEquivalentTo(["HealthFileWorker"]);
     }
 
     [Fact]

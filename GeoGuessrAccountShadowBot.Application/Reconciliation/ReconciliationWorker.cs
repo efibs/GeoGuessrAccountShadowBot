@@ -2,6 +2,7 @@
 
 using GeoGuessrAccountShadowBot.Application.Connection;
 using GeoGuessrAccountShadowBot.Application.Options;
+using GeoGuessrAccountShadowBot.Application.Pipeline;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -44,9 +45,10 @@ public sealed class ReconciliationWorker(
     ConnectionStatus connection,
     AccountContext account,
     IOptions<ShadowOptions> options,
-    TimeProvider timeProvider) : BackgroundService
+    TimeProvider timeProvider,
+    WorkerSupervision supervision) : SupervisedBackgroundService(supervision)
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         await account.Ready.WaitAsync(stoppingToken).ConfigureAwait(false);
 

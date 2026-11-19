@@ -16,6 +16,7 @@ A rejected token or a yielded socket doesn't make it unhealthy, because a restar
 | GeoGuessr socket blocked | The handshake was refused with a valid token | Check the logs. Mirroring continues over HTTP |
 | GeoGuessr client version outdated | GeoGuessr asked this client to reload | Update `GeoGuessr:ClientVersion` |
 | GeoGuessr socket down | Reconnecting for over two minutes | Usually an outage on their side |
+| A background worker crashed | A part of the bot failed and restarts by itself | Nothing if it's rare. If it repeats, the logs say why |
 
 Brief reconnects are deliberately silent.
 

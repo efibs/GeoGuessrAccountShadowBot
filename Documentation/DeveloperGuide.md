@@ -27,6 +27,7 @@ HTTP reconciliation ──────────┘                           
 - **One transaction.** The dedupe key, state changes and outbox rows of an event commit together.
 - **Handlers touch the database only.** An architecture test forbids them from taking a network port, because a slow call would stall every event.
 - **The outbox is the durability layer.** The queue isn't. Anything lost from the queue is found again by reconciliation, except live-only events.
+- **Workers restart themselves.** Every worker derives from `SupervisedBackgroundService`, which logs a crash, reports it and restarts the worker with a backoff. A host restart would resend whatever was in flight. Only a `FatalShadowException` stops the bot, for failures no restart can fix. A composition test enforces this, and `EndToEndTests` runs the real workers together on a database file, because races between them don't show in tests of one part.
 
 ## Where truth comes from
 

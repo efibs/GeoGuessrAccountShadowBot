@@ -3,6 +3,7 @@
 using GeoGuessrAccountShadowBot.Application.Handlers;
 using GeoGuessrAccountShadowBot.Application.Notifications;
 using GeoGuessrAccountShadowBot.Application.Options;
+using GeoGuessrAccountShadowBot.Application.Pipeline;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,7 +23,8 @@ public sealed partial class PendingReplyMonitor(
     OutboxSignal outboxSignal,
     IOptions<ShadowOptions> options,
     TimeProvider timeProvider,
-    ILogger<PendingReplyMonitor> logger) : BackgroundService
+    ILogger<PendingReplyMonitor> logger,
+    WorkerSupervision supervision) : SupervisedBackgroundService(supervision)
 {
     private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(5);
 
@@ -63,7 +65,7 @@ public sealed partial class PendingReplyMonitor(
         }
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         await account.Ready.WaitAsync(stoppingToken).ConfigureAwait(false);
 
