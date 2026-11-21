@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+using GeoGuessrAccountShadowBot.Api;
 using GeoGuessrAccountShadowBot.Application;
 using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Discord;
@@ -55,16 +56,30 @@ internal static class ShadowHost
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole(options => options.FormatterName = RedactingConsoleFormatter.FormatterName);
         builder.Logging.AddConsoleFormatter<RedactingConsoleFormatter, ConsoleFormatterOptions>();
-        builder.Services.AddSingleton(new SecretRedactor([settings.GeoGuessr.NcfaToken, settings.Discord.Token]));
+        builder.Services.AddSingleton(new SecretRedactor(
+        [
+            settings.GeoGuessr.NcfaToken,
+            settings.Discord.Token,
+            .. settings.ExternalApi.Clients.Values.Select(client => client.Token),
+            .. settings.Sources.Values.Select(source => source.Token)
+        ]));
 
         builder.Services.AddOptions<ShadowOptions>().Bind(builder.Configuration).ValidateOnStart();
 
         // Hosted services start in order and stop in reverse. The database has to be ready first,
-        // and Discord has to stay up until everything that delivers to it has stopped.
+        // and Discord has to stay up until everything that delivers to it has stopped. Headless,
+        // there is no Discord at all.
+        var headless = !settings.Discord.Enabled;
         builder.Services.AddShadowPersistence(settings.Database.Path);
-        builder.Services.AddShadowDiscord();
-        builder.Services.AddShadowApplication();
+        if (!headless)
+        {
+            builder.Services.AddShadowDiscord();
+        }
+
+        builder.Services.AddShadowApplication(headless);
         builder.Services.AddShadowGeoGuessr();
+        builder.Services.AddShadowSources();
+        builder.Services.AddShadowExternalApi();
         builder.Services.AddHostedService<HealthFileWorker>();
     }
 }

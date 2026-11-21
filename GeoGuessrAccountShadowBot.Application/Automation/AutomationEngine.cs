@@ -9,11 +9,13 @@ using GeoGuessrAccountShadowBot.Application.Notifications;
 using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Application.Ports;
 using GeoGuessrAccountShadowBot.Application.Reconciliation;
+using GeoGuessrAccountShadowBot.Application.Sources;
 using GeoGuessrAccountShadowBot.Domain;
 using GeoGuessrAccountShadowBot.Domain.Model;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Scriban.Runtime;
 
 namespace GeoGuessrAccountShadowBot.Application.Automation;
 
@@ -35,6 +37,8 @@ public sealed partial class AutomationEngine(
     AccountContext account,
     ConnectionStatus connection,
     ReconcileRequests reconcile,
+    ExternalSources sources,
+    ExternalFeedSignal feedSignal,
     IOptions<ShadowOptions> options,
     TimeProvider timeProvider,
     ILogger<AutomationEngine> logger)
@@ -48,6 +52,8 @@ public sealed partial class AutomationEngine(
     private readonly AccountContext _account = account;
     private readonly ConnectionStatus _connection = connection;
     private readonly ReconcileRequests _reconcile = reconcile;
+    private readonly ExternalSources _sources = sources;
+    private readonly ExternalFeedSignal _feedSignal = feedSignal;
     private readonly IOptions<ShadowOptions> _options = options;
     private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -174,12 +180,14 @@ public sealed partial class AutomationEngine(
         private readonly IAutomationStore _automations;
         private readonly PlayerDirectory _players;
         private readonly AutomationRunFactory _factory;
+        private readonly ExternalEventCapture _feed;
         private readonly bool _preview;
         private readonly List<string> _log;
         private AutomationRun _run;
         private AutomationRule? _rule;
         private AutomationPlayer? _player;
         private AutomationScope? _scope;
+        private bool _recordedInFeed;
 
         public Execution(AutomationEngine engine, IServiceProvider services, AutomationRun run, bool preview)
         {
@@ -188,6 +196,7 @@ public sealed partial class AutomationEngine(
             _automations = services.GetRequiredService<IAutomationStore>();
             _players = services.GetRequiredService<PlayerDirectory>();
             _factory = services.GetRequiredService<AutomationRunFactory>();
+            _feed = services.GetRequiredService<ExternalEventCapture>();
             _preview = preview;
             _run = run;
             _log = [.. run.Log];
@@ -280,8 +289,76 @@ public sealed partial class AutomationEngine(
                 return false;
             }
 
-            _scope = new AutomationScope(AutomationVariables.Build(Rule, _run, _player, _engine._account, Now));
+            if (await ReadSourcesAsync(cancellationToken).ConfigureAwait(false) is not { } sources)
+            {
+                return false;
+            }
+
+            _scope = new AutomationScope(AutomationVariables.Build(Rule, _run, _player, _engine._account, Now, sources));
             return true;
+        }
+
+        /// <summary>
+        /// Reads what the scripts read from sources, before any of them runs, since scripts can't
+        /// wait for a request. A source that can't be reached puts the run off like GeoGuessr does.
+        /// </summary>
+        /// <returns>The <c>sources</c> variable, or null when the run stopped or has to wait.</returns>
+        private async Task<ScriptObject?> ReadSourcesAsync(CancellationToken cancellationToken)
+        {
+            var result = new ScriptObject();
+            foreach (var (source, sections) in SourceSectionsToRead())
+            {
+                var values = new ScriptObject();
+                result[source.Name] = values;
+                foreach (var section in sections)
+                {
+                    var player = source.PlayerSections.Contains(section) ? _run.SubjectUserId : null;
+                    if (source.PlayerSections.Contains(section) && player is null)
+                    {
+                        values[section] = null;
+                        continue;
+                    }
+
+                    try
+                    {
+                        var json = await source.ReadSectionAsync(section, player, cancellationToken).ConfigureAwait(false);
+                        values[section] = AutomationVariables.FromJson(json);
+                    }
+                    catch (ExternalSourceUnavailableException exception)
+                    {
+                        await PostponeAsync($"The source {source.Name} couldn't be reached: {exception.Message}", RetryDelay, cancellationToken).ConfigureAwait(false);
+                        return null;
+                    }
+                    catch (ExternalSourceRefusedException exception)
+                    {
+                        await FinishAsync(AutomationRunState.Failed, $"The source {source.Name} refused to give out {section}: {exception.Message}", cancellationToken).ConfigureAwait(false);
+                        return null;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private IEnumerable<(IExternalSource Source, IReadOnlyCollection<string> Sections)> SourceSectionsToRead()
+        {
+            var wanted = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            foreach (var read in Rule.SourceReads)
+            {
+                var names = read.Source is { } name ? [name] : _engine._sources.All.Select(source => source.Name);
+                foreach (var source in names.Select(_engine._sources.Find).OfType<IExternalSource>())
+                {
+                    if (!wanted.TryGetValue(source.Name, out var sections))
+                    {
+                        sections = new HashSet<string>(StringComparer.Ordinal);
+                        wanted[source.Name] = sections;
+                    }
+
+                    sections.UnionWith(read.Section is { } section ? source.Sections.Where(known => known == section) : source.Sections);
+                }
+            }
+
+            return wanted.Select(entry => (_engine._sources.Find(entry.Key)!, (IReadOnlyCollection<string>)entry.Value));
         }
 
         private async Task<AutomationPlayer?> ResolvePlayerAsync(string? userId, bool withProfile, CancellationToken cancellationToken)
@@ -291,9 +368,7 @@ public sealed partial class AutomationEngine(
                 return null;
             }
 
-            var friendships = await _store.ReadStateAsync<FriendshipSet>(SnapshotKeys.Friendships, cancellationToken).ConfigureAwait(false);
-            var roster = await _store.ReadStateAsync<ClubRoster>(SnapshotKeys.ClubRoster, cancellationToken).ConfigureAwait(false);
-            var applications = await _store.ReadStateAsync<ClubApplicationSet>(SnapshotKeys.ClubApplications, cancellationToken).ConfigureAwait(false);
+            var relations = await PlayerRelations.ReadAsync(_store, userId, cancellationToken).ConfigureAwait(false);
 
             PlayerProfile? profile = null;
             string nick;
@@ -316,11 +391,11 @@ public sealed partial class AutomationEngine(
                 userId,
                 nick,
                 profile,
-                friendships?.Friends.Contains(userId) ?? false,
-                friendships?.Incoming.Contains(userId) ?? false,
-                friendships?.Outgoing.Contains(userId) ?? false,
-                roster?.Members.ContainsKey(userId) ?? false,
-                applications?.Pending.ContainsKey(userId) ?? false);
+                relations.IsFriend,
+                relations.HasRequested,
+                relations.WasRequested,
+                relations.IsClubMember,
+                relations.HasApplied);
         }
 
         /// <summary>Checks age, condition and limits. A manual run skips the age and the limits.</summary>
@@ -885,7 +960,15 @@ public sealed partial class AutomationEngine(
             IReadOnlyList<string?> targets;
             if (raise.ForEach is { } audience)
             {
-                targets = await AudienceAsync(audience, cancellationToken).ConfigureAwait(false);
+                var read = raise.ForEachSource is { } sourceName
+                    ? await RemoteAudienceAsync(sourceName, audience, raise.Path, cancellationToken).ConfigureAwait(false)
+                    : await AudienceAsync(audience, cancellationToken).ConfigureAwait(false);
+                if (read is null)
+                {
+                    return false;
+                }
+
+                targets = read;
                 if (targets.Count > settings.MaxFanOut)
                 {
                     await FinishAsync(AutomationRunState.Failed, $"{raise.Path}: {audience} has {targets.Count} players, and Control:Automation:MaxFanOut allows {settings.MaxFanOut}.", cancellationToken).ConfigureAwait(false);
@@ -927,6 +1010,12 @@ public sealed partial class AutomationEngine(
             {
                 var fire = new AutomationFire(key, target, Now, data.DeepClone().AsObject(), $"raise:{_run.Id}:{_run.ProgramCounter}:{target}");
                 created += _factory.Create(fire, listeners, _run.Depth + 1, dryRun: _run.DryRun).Count;
+
+                // Other instances may follow this event too, but a dry run raises nothing real.
+                if (!_run.DryRun)
+                {
+                    _recordedInFeed |= _feed.Capture(fire);
+                }
             }
 
             Log($"{Mark()} Raise {key}{who}, which started {created} runs.");
@@ -934,22 +1023,34 @@ public sealed partial class AutomationEngine(
             return true;
         }
 
-        private async Task<IReadOnlyList<string?>> AudienceAsync(AutomationAudience audience, CancellationToken cancellationToken)
+        /// <summary>The players in a source's group, or null when the run stopped or has to wait.</summary>
+        private async Task<IReadOnlyList<string?>?> RemoteAudienceAsync(string sourceName, AutomationAudience audience, string path, CancellationToken cancellationToken)
         {
-            IEnumerable<string> ids = audience switch
+            if (_engine._sources.Find(sourceName) is not { } source)
             {
-                AutomationAudience.Friends =>
-                    (await _store.ReadStateAsync<FriendshipSet>(SnapshotKeys.Friendships, cancellationToken).ConfigureAwait(false))?.Friends ?? [],
-                AutomationAudience.FriendRequests =>
-                    (await _store.ReadStateAsync<FriendshipSet>(SnapshotKeys.Friendships, cancellationToken).ConfigureAwait(false))?.Incoming ?? [],
-                AutomationAudience.ClubMembers =>
-                    (await _store.ReadStateAsync<ClubRoster>(SnapshotKeys.ClubRoster, cancellationToken).ConfigureAwait(false))?.Members.Keys ?? [],
-                _ =>
-                    (await _store.ReadStateAsync<ClubApplicationSet>(SnapshotKeys.ClubApplications, cancellationToken).ConfigureAwait(false))?.Pending.Keys ?? []
-            };
+                await FinishAsync(AutomationRunState.Failed, $"{path}.ForEach: there is no source named {sourceName} in Sources.", cancellationToken).ConfigureAwait(false);
+                return null;
+            }
 
-            return ids.Where(id => id != _engine._account.UserId).Cast<string?>().ToArray();
+            try
+            {
+                var ids = await source.ReadAudienceAsync(audience, cancellationToken).ConfigureAwait(false);
+                return ids.Select(ParseUserId).OfType<string>().Where(id => id != _engine._account.UserId).Distinct(StringComparer.Ordinal).Cast<string?>().ToArray();
+            }
+            catch (ExternalSourceUnavailableException exception)
+            {
+                await PostponeAsync($"The source {sourceName} couldn't be reached: {exception.Message}", RetryDelay, cancellationToken).ConfigureAwait(false);
+                return null;
+            }
+            catch (ExternalSourceRefusedException exception)
+            {
+                await FinishAsync(AutomationRunState.Failed, $"{path}.ForEach: the source {sourceName} refused to give out {audience}: {exception.Message}", cancellationToken).ConfigureAwait(false);
+                return null;
+            }
         }
+
+        private async Task<IReadOnlyList<string?>?> AudienceAsync(AutomationAudience audience, CancellationToken cancellationToken) =>
+            (await AutomationAudiences.ReadAsync(_store, audience, _engine._account.UserId, cancellationToken).ConfigureAwait(false)).Cast<string?>().ToArray();
 
         /// <summary>The player a step is about: the run's player, unless a template names another.</summary>
         private async Task<string?> TargetAsync(AutomationScript? template, string path, CancellationToken cancellationToken)
@@ -1107,6 +1208,12 @@ public sealed partial class AutomationEngine(
             _run = _run with { Log = [.. _log] };
             await _automations.UpdateRunAsync(_run, cancellationToken).ConfigureAwait(false);
             await _store.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+            if (_recordedInFeed)
+            {
+                _recordedInFeed = false;
+                _engine._feedSignal.Wake();
+            }
         }
 
         private static string Clip(string text) =>

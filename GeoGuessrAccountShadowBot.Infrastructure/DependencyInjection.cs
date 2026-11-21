@@ -7,6 +7,7 @@ using GeoGuessrAccountShadowBot.Application.Ports;
 using GeoGuessrAccountShadowBot.Infrastructure.GeoGuessr.Http;
 using GeoGuessrAccountShadowBot.Infrastructure.GeoGuessr.Socket;
 using GeoGuessrAccountShadowBot.Infrastructure.Persistence;
+using GeoGuessrAccountShadowBot.Infrastructure.Sources;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
@@ -32,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<EfShadowStore>();
         services.AddScoped<IShadowStore>(provider => provider.GetRequiredService<EfShadowStore>());
         services.AddScoped<IAutomationStore>(provider => provider.GetRequiredService<EfShadowStore>());
+        services.AddScoped<IExternalEventStore>(provider => provider.GetRequiredService<EfShadowStore>());
         services.AddHostedService<DatabaseInitializer>();
         return services;
     }
@@ -44,6 +46,46 @@ public static class DependencyInjection
         services.AddSingleton<ISocketConnector, ClientWebSocketConnector>();
         services.AddSingleton<IGeoGuessrChatSender, GeoGuessrChatSender>();
         services.AddHostedService<ConnectionSupervisor>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the clients for external sources. They never follow redirects, so the token
+    /// can't be sent anywhere but the configured address, and only reads are retried.
+    /// </summary>
+    public static IServiceCollection AddShadowSources(this IServiceCollection services)
+    {
+        static SocketsHttpHandler Handler() => new()
+        {
+            UseCookies = false,
+            AllowAutoRedirect = false,
+            AutomaticDecompression = DecompressionMethods.All,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+        };
+
+        services.AddHttpClient(ShadowBotSource.DataClient, client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+                client.MaxResponseContentBufferSize = 1024 * 1024;
+            })
+            .ConfigurePrimaryHttpMessageHandler(Handler)
+            .AddResilienceHandler("external-source", pipeline =>
+            {
+                pipeline.AddRetry(new HttpRetryStrategyOptions
+                {
+                    MaxRetryAttempts = 2,
+                    Delay = TimeSpan.FromSeconds(1),
+                    BackoffType = DelayBackoffType.Exponential,
+                    UseJitter = true
+                });
+                pipeline.AddTimeout(TimeSpan.FromSeconds(10));
+            });
+
+        // The stream stays open for as long as both sides run, and the source pings to keep it alive.
+        services.AddHttpClient(ShadowBotSource.StreamClient, client => client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(Handler);
+
+        services.AddSingleton<IExternalSourceFactory, ExternalSourceFactory>();
         return services;
     }
 

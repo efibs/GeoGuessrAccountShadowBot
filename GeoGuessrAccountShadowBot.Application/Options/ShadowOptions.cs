@@ -22,6 +22,15 @@ public sealed class ShadowOptions
 
     public DatabaseOptions Database { get; set; } = new();
 
+    /// <summary>The API other instances read this one through, as an external source.</summary>
+    public ExternalApiOptions ExternalApi { get; set; } = new();
+
+    /// <summary>Other systems this instance reads events and data from, by the name rules use.</summary>
+    public Dictionary<string, SourceOptions> Sources { get; set; } = [];
+
+    /// <summary>Whether the bot runs without Discord.</summary>
+    public bool IsHeadless => !Discord.Enabled;
+
     public bool IsEventEnabled(string key) => Events.TryGetValue(key, out var options) && options.Enabled;
 
     /// <summary>Whether the event is on and posts its own card, rather than only starting rules.</summary>
@@ -107,6 +116,12 @@ public sealed class PollingOptions
 
 public sealed class DiscordOptions
 {
+    /// <summary>
+    /// Off runs the bot headless: it watches the account, runs configured rules and serves other
+    /// instances, but starts no Discord bot and needs no token.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
     public string Token { get; set; } = "";
 
     public ulong GuildId { get; set; }
@@ -233,4 +248,68 @@ public sealed class EventOptions
 public sealed class DatabaseOptions
 {
     public string Path { get; set; } = "/data/shadow.db";
+}
+
+/// <summary>
+/// The API that lets other instances use this one as a source. Each client has its own token, and
+/// sees only the events and data it is allowed.
+/// </summary>
+public sealed class ExternalApiOptions
+{
+    public bool Enabled { get; set; }
+
+    public int Port { get; set; } = 8080;
+
+    /// <summary>How long served events are kept, so a client that was away can catch up.</summary>
+    public TimeSpan EventRetention { get; set; } = TimeSpan.FromDays(7);
+
+    /// <summary>The instances allowed to connect, by a name used in logs.</summary>
+    public Dictionary<string, ExternalApiClientOptions> Clients { get; set; } = [];
+}
+
+/// <summary>What one client of the API may see. Nothing is shared by default.</summary>
+public sealed class ExternalApiClientOptions
+{
+    /// <summary>The token the client sends. Best kept in a Docker secret.</summary>
+    public string Token { get; set; } = "";
+
+    /// <summary>The triggers whose events it receives, such as <c>ClubApplicationReceived</c> or <c>Custom:vip</c>.</summary>
+    public List<string> Events { get; set; } = [];
+
+    /// <summary>The data it may read.</summary>
+    public List<ExternalApiData> Data { get; set; } = [];
+}
+
+/// <summary>The kinds of data a source serves.</summary>
+public enum ExternalApiData
+{
+    /// <summary>How one player relates to the account: friend, applicant, member.</summary>
+    Players,
+
+    /// <summary>The account's id and club.</summary>
+    Account,
+
+    /// <summary>The account's friends, friend requests, club members and applications.</summary>
+    Lists
+}
+
+/// <summary>Another system this instance reads from.</summary>
+public sealed class SourceOptions
+{
+    public const string ShadowBotType = "ShadowBot";
+
+    /// <summary>What kind of system it is. Only another shadow bot exists so far.</summary>
+    public string Type { get; set; } = ShadowBotType;
+
+    /// <summary>Where it is, such as <c>https://dragon.example.com/</c>, or plain http on a private network.</summary>
+    public Uri? Url { get; set; }
+
+    /// <summary>The token the source gave this instance. Best kept in a Docker secret.</summary>
+    public string Token { get; set; } = "";
+
+    /// <summary>How long the source may be unreachable before the status channel hears about it.</summary>
+    public TimeSpan AlertAfter { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>How long the source may be unreachable before the health check fails. Null never fails it.</summary>
+    public TimeSpan? UnhealthyAfter { get; set; } = TimeSpan.FromMinutes(30);
 }

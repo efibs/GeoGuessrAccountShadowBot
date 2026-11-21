@@ -60,6 +60,8 @@ internal sealed class ShadowTestHost : IAsyncDisposable
 
     public RecordingPublisher Publisher { get; } = new();
 
+    public FakeSources Sources { get; } = new();
+
     public IServiceProvider Services => _services;
 
     public T Get<T>() where T : notnull => _services.GetRequiredService<T>();
@@ -116,6 +118,7 @@ internal sealed class ShadowTestHost : IAsyncDisposable
         services.AddSingleton(Api);
         services.AddSingleton(Sender);
         services.AddSingleton(Roles);
+        services.AddSingleton<IExternalSourceFactory>(Sources);
         if (_lookUpNames)
         {
             services.AddScoped<IDiscordPublisher>(provider => new NameResolvingPublisher(provider.GetRequiredService<PlayerDirectory>(), Publisher));
@@ -142,6 +145,7 @@ internal sealed class ShadowTestHost : IAsyncDisposable
         services.AddScoped<EfShadowStore>();
         services.AddScoped<IShadowStore>(provider => provider.GetRequiredService<EfShadowStore>());
         services.AddScoped<IAutomationStore>(provider => provider.GetRequiredService<EfShadowStore>());
+        services.AddScoped<IExternalEventStore>(provider => provider.GetRequiredService<EfShadowStore>());
         if (_configuration is not null)
         {
             services.AddSingleton(_configuration);

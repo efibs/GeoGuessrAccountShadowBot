@@ -43,7 +43,8 @@ public static class AutomationVariables
         AutomationRun run,
         AutomationPlayer? player,
         AccountContext account,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        ScriptObject? sources = null)
     {
         var data = ParseEvent(run.EventJson);
         data["trigger"] = run.Trigger;
@@ -63,6 +64,7 @@ public static class AutomationVariables
                 ["manual"] = run.Manual
             },
             ["account"] = new ScriptObject { ["id"] = account.UserId, ["club_id"] = account.ClubId },
+            ["sources"] = sources ?? [],
             ["now"] = now.UtcDateTime
         };
     }
@@ -113,6 +115,9 @@ public static class AutomationVariables
             : null;
         return result;
     }
+
+    /// <summary>Copies JSON into plain Scriban objects, such as a section read from a source.</summary>
+    public static ScriptObject FromJson(JsonObject json) => ToScript(json);
 
     private static ScriptObject ParseEvent(string json)
     {

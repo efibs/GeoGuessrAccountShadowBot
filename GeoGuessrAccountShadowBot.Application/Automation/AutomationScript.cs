@@ -37,6 +37,9 @@ public sealed partial class AutomationScript
     /// </summary>
     public bool ReadsPlayer { get; private init; }
 
+    /// <summary>The sections of sources the script reads, which are fetched before it runs.</summary>
+    public IReadOnlyList<SourceRead> SourceReads { get; private init; } = [];
+
     /// <summary>Parses text with <c>{{ }}</c> blocks, such as a message.</summary>
     public static AutomationScript? ParseTemplate(string source, out string? error) => Parse(source, isExpression: false, out error);
 
@@ -54,7 +57,7 @@ public sealed partial class AutomationScript
         }
 
         error = null;
-        return new AutomationScript(source, template, isExpression) { ReadsPlayer = NeedsProfile(source) };
+        return new AutomationScript(source, template, isExpression) { ReadsPlayer = NeedsProfile(source), SourceReads = FindSourceReads(source) };
     }
 
     private static readonly HashSet<string> CheapPlayerFields = new(StringComparer.Ordinal)
@@ -65,9 +68,30 @@ public sealed partial class AutomationScript
     private static bool NeedsProfile(string source) =>
         PlayerReference().Matches(source).Any(match => !match.Groups[1].Success || !CheapPlayerFields.Contains(match.Groups[1].Value));
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"\bplayer\b(?:\s*\.\s*(\w+))?")]
+    /// <summary>
+    /// Finds <c>sources.name.section</c>. A reference without a section reads all of them, and one
+    /// without a name reads every source, since the script could reach any of them.
+    /// </summary>
+    private static SourceRead[] FindSourceReads(string source) =>
+        SourceReference().Matches(source)
+            .Select(match => new SourceRead(
+                match.Groups[1].Success ? match.Groups[1].Value : null,
+                match.Groups[2].Success ? match.Groups[2].Value : null))
+            .Distinct()
+            .ToArray();
+
+    // A player read through a source, such as sources.dragon.player.level, isn't this account's.
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?<!\.\s*)\bplayer\b(?:\s*\.\s*(\w+))?")]
     private static partial System.Text.RegularExpressions.Regex PlayerReference();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?<!\.\s*)\bsources\b(?:\s*\.\s*(\w+)(?:\s*\.\s*(\w+))?)?")]
+    private static partial System.Text.RegularExpressions.Regex SourceReference();
 }
+
+/// <summary>A part of a source a script reads.</summary>
+/// <param name="Source">The source, or null if the script could reach any.</param>
+/// <param name="Section">The section, such as <c>player</c>, or null if it could reach any.</param>
+public sealed record SourceRead(string? Source, string? Section);
 
 /// <summary>
 /// The variables one evaluation sees. A scope is cheap, and made again for every evaluation of a

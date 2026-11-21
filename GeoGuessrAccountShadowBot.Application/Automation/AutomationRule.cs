@@ -28,7 +28,10 @@ public enum AutomationTriggerKind
     Manual,
 
     /// <summary>An event raised by another rule.</summary>
-    Custom
+    Custom,
+
+    /// <summary>An event of an external source, such as another instance of the bot.</summary>
+    Source
 }
 
 /// <summary>When a rule reports its runs to Discord.</summary>
@@ -44,7 +47,8 @@ public enum AutomationReportMode
 /// <param name="Name">The event key, or the name of a custom event.</param>
 /// <param name="Cron">The schedule, for <see cref="AutomationTriggerKind.Schedule"/>.</param>
 /// <param name="TimeZone">The time zone the schedule is read in.</param>
-public sealed record AutomationTriggerSpec(AutomationTriggerKind Kind, string Name, CronExpression? Cron, TimeZoneInfo TimeZone)
+/// <param name="Source">The source, for <see cref="AutomationTriggerKind.Source"/>, whose trigger is then <paramref name="Name"/>.</param>
+public sealed record AutomationTriggerSpec(AutomationTriggerKind Kind, string Name, CronExpression? Cron, TimeZoneInfo TimeZone, string? Source = null)
 {
     public const string SchedulePrefix = "Schedule";
     public const string ManualName = "Manual";
@@ -56,6 +60,7 @@ public sealed record AutomationTriggerSpec(AutomationTriggerKind Kind, string Na
         AutomationTriggerKind.Event => Name,
         AutomationTriggerKind.Schedule => SchedulePrefix,
         AutomationTriggerKind.Manual => ManualName,
+        AutomationTriggerKind.Source => $"Source:{Source}:{Name}",
         _ => CustomPrefix + Name
     };
 }
@@ -102,6 +107,10 @@ public sealed record AutomationRule(
     /// <summary>Whether any script reads the player, which costs a profile lookup.</summary>
     public bool ReadsPlayer { get; } = (When?.ReadsPlayer ?? false) || Program.Any(step => step.Scripts.Any(script => script.ReadsPlayer));
 
+    /// <summary>What the scripts read from sources, which costs a request each.</summary>
+    public IReadOnlyList<SourceRead> SourceReads { get; } =
+        (When is null ? [] : When.SourceReads).Concat(Program.SelectMany(step => step.Scripts.SelectMany(script => script.SourceReads))).Distinct().ToArray();
+
     public bool NeedsApproval => Program.OfType<ApprovalStep>().Any();
 }
 
@@ -147,12 +156,14 @@ public enum AutomationAudience
 }
 
 /// <summary>Starts the rules listening to a custom event.</summary>
+/// <param name="ForEachSource">The source whose group <paramref name="ForEach"/> is, or null for the account's own.</param>
 public sealed record RaiseStep(
     string Path,
     string EventName,
     IReadOnlyDictionary<string, AutomationScript> Data,
     AutomationAudience? ForEach,
-    AutomationScript? Player) : AutomationStep(Path)
+    AutomationScript? Player,
+    string? ForEachSource = null) : AutomationStep(Path)
 {
     public override IEnumerable<AutomationScript> Scripts => Player is null ? Data.Values : [.. Data.Values, Player];
 }

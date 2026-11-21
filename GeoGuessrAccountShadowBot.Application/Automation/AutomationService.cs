@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using GeoGuessrAccountShadowBot.Application.Control;
 using GeoGuessrAccountShadowBot.Application.Options;
 using GeoGuessrAccountShadowBot.Application.Ports;
+using GeoGuessrAccountShadowBot.Application.Sources;
 using GeoGuessrAccountShadowBot.Domain;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -36,6 +37,7 @@ public sealed class AutomationService(
     AutomationEngine engine,
     AutomationSignal signal,
     IServiceScopeFactory scopes,
+    SourceStatusTracker sources,
     IOptions<ShadowOptions> options,
     TimeProvider timeProvider)
 {
@@ -340,6 +342,49 @@ public sealed class AutomationService(
 
         return reply ?? AutomationReply.Refused(result.Error!);
     }
+
+    /// <summary>How each source's event stream stands, and when its last event came.</summary>
+    public Task<AutomationReply> SourcesAsync(ulong user, CancellationToken cancellationToken) =>
+        AsViewerAsync(user, () =>
+        {
+            var configured = options.Value.Sources;
+            if (configured.Count == 0)
+            {
+                return Task.FromResult(new AutomationReply(true, "There are no sources. Add one under `Sources` in the configuration."));
+            }
+
+            var now = timeProvider.GetUtcNow();
+            var statuses = sources.All.ToDictionary(status => status.Name, StringComparer.Ordinal);
+            var text = new StringBuilder();
+            foreach (var (name, settings) in configured.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+            {
+                text.Append(CultureInfo.InvariantCulture, $"**{name}** · {settings.Type} · {settings.Url?.Authority} · ");
+                if (!statuses.TryGetValue(name, out var status))
+                {
+                    text.AppendLine("not followed, because automations are off.");
+                    continue;
+                }
+
+                if (status.Connected)
+                {
+                    text.Append(CultureInfo.InvariantCulture, $"🟢 connected for {AutomationEngine.Describe(now - status.Since)}");
+                }
+                else
+                {
+                    text.Append(CultureInfo.InvariantCulture, $"🔴 down for {AutomationEngine.Describe(now - status.Since)}");
+                    if (status.Problem is { } problem)
+                    {
+                        text.Append(CultureInfo.InvariantCulture, $": {AutomationMarkup.Untrusted(problem)}");
+                    }
+                }
+
+                text.AppendLine(status.LastEventAt is { } at
+                    ? $" · last event {AutomationEngine.Describe(now - at)} ago, which took {AutomationEngine.Describe(status.LastDelay ?? TimeSpan.Zero)} to arrive"
+                    : " · no event since the bot started");
+            }
+
+            return Task.FromResult(new AutomationReply(true, text.ToString().TrimEnd()));
+        }, cancellationToken);
 
     public Task<AutomationReply> RunsAsync(ulong user, string? name, CancellationToken cancellationToken) =>
         AsViewerAsync(user, async () =>

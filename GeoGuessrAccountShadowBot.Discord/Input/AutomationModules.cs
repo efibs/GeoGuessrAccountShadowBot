@@ -94,6 +94,9 @@ public sealed class AutomationModule(AutomationService automations, IHostApplica
         [Summary("text", "A message text, for rules that read event.text")] string? text = null) =>
         RunAsync(() => automations.RunAsync(Context.User.Id, name, player, text, Stopping));
 
+    [SlashCommand("sources", "Show whether the external sources are connected")]
+    public Task SourcesAsync() => RunAsync(() => automations.SourcesAsync(Context.User.Id, Stopping));
+
     [SlashCommand("runs", "Show recent automation runs")]
     public Task RunsAsync([Autocomplete(typeof(RuleNameAutocomplete)), Summary("name", "Only this automation")] string? name = null) =>
         RunAsync(() => automations.RunsAsync(Context.User.Id, name, Stopping));

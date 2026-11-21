@@ -16,6 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\GeoGuessrAccountShadowBot.Api\GeoGuessrAccountShadowBot.Api.csproj"/>
         <ProjectReference Include="..\GeoGuessrAccountShadowBot.Discord\GeoGuessrAccountShadowBot.Discord.csproj"/>
         <ProjectReference Include="..\GeoGuessrAccountShadowBot.Infrastructure\GeoGuessrAccountShadowBot.Infrastructure.csproj"/>
     </ItemGroup>

@@ -8,6 +8,7 @@
 | `Application` | Pipeline, handlers, reconciliation, connection policy, control, ports, options | Domain |
 | `Infrastructure` | Socket, HTTP client, EF Core and SQLite | Application |
 | `Discord` | Rendering, publishing, listeners, commands | Application |
+| `Api` | The external API other instances read, on its own small Kestrel host | Application |
 | `Host` | Composition, logging, health | Everything |
 | `Tests` | All tests | Everything |
 | `Tools/…Probe` | Protocol investigation | Nothing, on purpose |
@@ -79,6 +80,22 @@ Schedule, /automation run, Raise ───────────────�
 
 **A new step** needs a record in `AutomationRule.cs`, a case in the parser, and a case in the engine. A step that acts as the account goes through `PlanAsync`, which gives it the rate limit, the socket wait and the at-most-once marking.
 
+## External sources
+
+```
+source:  EventProcessor ─> ExternalEventCapture ─> feed row ─> ExternalApiServer ─> SSE
+reader:  ShadowBotSource ─> SourceEventWorker ─> runs + position ─> AutomationWorker
+                         └─ AutomationEngine reads sections before a run starts
+```
+
+- **The feed is a log.** `ExternalEventFeed` decides what is served, and `ExternalEventCapture` writes it in the unit of work of the event or the run that raised it. Ids only grow, and pruning keeps the newest row.
+- **The position commits with the runs.** `SourceEventWorker` saves where it is in a source's feed together with the runs an event starts, so each event starts its rules once.
+- **Scripts don't wait.** `AutomationScript` finds `sources.<name>.<section>` statically, like `player` fields that need a profile, and the engine fetches those sections first.
+- **Two kinds of failure.** `ExternalSourceUnavailableException` puts a run off, and `ExternalSourceRefusedException` fails it, since only a configuration change fixes a refusal.
+- **Headless means no outbox.** `OutboxFilter` keeps everything out of the outbox when `Discord:Enabled` is off, and logs status messages and reports instead. `AddShadowApplication(headless: true)` leaves out the dispatcher.
+
+**A new kind of source** implements `IExternalSource`, is made by `ExternalSourceFactory` for its `Type`, and lists its sections for `AutomationRuleChecks`.
+
 ## Connection handling
 
 `ConnectionPolicy` makes every decision, and has no side effects. `ConnectionSupervisor` carries the decisions out. To change how a close code is treated, change the policy and its table of tests.
@@ -100,7 +117,8 @@ Schedule, /automation run, Raise ───────────────�
 | Real frames | `Infrastructure/FrameDecoderTests`, using scrubbed fixtures from the probe |
 | Pipeline on real SQLite and migrations | `Application/EventPipelineTests`, `ReconciliationTests`, `ControlTests`, `AutomationEngineTests` |
 | Rule parsing, scripts, escaping | `Application/AutomationRuleTests` |
-| Real sockets and HTTP on a local server | `Infrastructure/SocketSessionTests`, `HttpRoundTripTests` |
+| Real sockets and HTTP on a local server | `Infrastructure/SocketSessionTests`, `HttpRoundTripTests`, `ExternalApiRoundTripTests` |
+| Sources, the feed and headless mode on real SQLite | `Application/ExternalSourceTests`, `ExternalOptionsTests` |
 | Scripted connection with a fake clock | `Infrastructure/ConnectionSupervisorTests` |
 | Real object graph | `Host/CompositionTests` |
 | Snapshots | `Discord/RenderingTests` |
