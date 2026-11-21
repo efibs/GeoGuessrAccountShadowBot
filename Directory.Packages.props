@@ -27,7 +27,7 @@
 
     <ItemGroup Label="Automations">
         <PackageVersion Include="Cronos" Version="0.13.0"/>
-        <PackageVersion Include="Scriban" Version="7.5.3"/>
+        <PackageVersion Include="Scriban" Version="7.6.1"/>
     </ItemGroup>
 
     <ItemGroup Label="Persistence">
