@@ -22,7 +22,7 @@
         <PackageVersion Include="Microsoft.Extensions.Http" Version="11.0.0"/>
         <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="11.0.0"/>
         <PackageVersion Include="Polly.RateLimiting" Version="8.9.1"/>
-        <PackageVersion Include="Refit" Version="16.4.0"/>
+        <PackageVersion Include="Refit" Version="17.0.0"/>
     </ItemGroup>
 
     <ItemGroup Label="Automations">
